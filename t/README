@@ -1,0 +1,10 @@
+To run tests, install nginx like:
+
+    ./configure --prefix=/path/to/mod_zip-1.1.5/t/nginx --add-module=/path/to/mod_zip-1.1.5
+
+Then run:
+
+    ./restart.sh
+    ./ziptest.pl
+
+Warning: don't do this in production! restart.sh kills nginx processes

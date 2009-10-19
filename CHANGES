@@ -1,0 +1,74 @@
+Changes with mod_zip 1.1.5                                       13 Aug 2009
+
+    *) Bugfix: compatibility with nginx 0.7.25 and later
+
+    *) Bugfix: Range works with local, Memcached, and FastCGI files
+
+Changes with mod_zip 1.1.4                                       10 Feb 2009
+
+    *) Bugfix: compilation error on FreeBSD
+
+    *) Feature: Range end is optional (e.g. "bytes=0-")
+
+Changes with mod_zip 1.1.3                                       13 Aug 2008
+
+    *) Bugfix: crash when subrequests returned 404
+
+    *) Bugfix: compatibility with BOMArchiveHelper.app on Mac OS X (but only
+       when CRC-32's are supplied).
+
+    *) Feature: CRC-32's are optional. Use "-" to have mod_zip calculate them
+       on the fly. However, note that without CRC-32's up front, mod_zip will
+       not honor "Range" requests.
+
+
+Changes with mod_zip 1.1.2                                       06 Aug 2008
+
+    *) Bugfix: compilation error with nginx 0.6.x
+
+
+Changes with mod_zip 1.1.1                                       05 Aug 2008
+
+    *) Bugfix: compilation error on some platforms.
+
+
+Changes with mod_zip 1.1                                         04 Aug 2008
+
+    *) Feature: "Range" header support.
+
+    *) Change: new file list syntax. See README.
+
+
+Changes with mod_zip 1.0.8                                       13 Dec 2007
+
+    *) Bugfix: strip "Range" header from subrequests
+
+
+Changes with mod_zip 1.0.7                                       29 Nov 2007
+
+    *) Bugfix: clear outgoing "Accept-Ranges" header
+
+
+Changes with mod_zip 1.0.5                                       18 Sep 2007
+
+    *) Bugfix: support archives larger than 2GB
+
+
+Changes with mod_zip 1.0.4                                       31 Aug 2007
+
+    *) Bugfix: support empty files in an archive
+
+
+Changes with mod_zip 1.0.3                                       16 Aug 2007
+
+    *) Feature: support for Content-Length when X-Archive-Files-* headers are provided
+
+
+Changes with mod_zip 1.0.2                                       06 Aug 2007
+    
+    *) Bugfix: Fixed compilation with no --with-http-debug flag
+
+
+Changes with mod_zip 1.0.1                                       04 Jul 2007
+
+    *) Initial public release
