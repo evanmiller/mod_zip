@@ -49,6 +49,7 @@ typedef struct {
     ngx_uint_t              pieces_n;
     ngx_atomic_uint_t       boundary;
     off_t                   archive_size;
+    ngx_http_request_t      *wait;  /* the request we're waiting on */
 
     unsigned                parsed:1;
     unsigned                trailer_sent:1;

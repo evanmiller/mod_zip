@@ -206,7 +206,7 @@ ngx_http_zip_main_request_header_filter(ngx_http_request_t *r)
     if (ngx_http_upstream_header_variable(r, vv, 
                 (uintptr_t)(&ngx_http_zip_header_variable_name)) != NGX_OK 
             || vv->not_found
-            || ngx_strncmp(vv->data, "zip", sizeof("zip") - 1) != 0)
+   	    || ngx_strncmp(vv->data, "zip", sizeof("zip") - 1) != 0)
     {
         return ngx_http_next_header_filter(r);
     }
@@ -232,6 +232,8 @@ ngx_http_zip_main_request_header_filter(ngx_http_request_t *r)
 
     ngx_http_set_ctx(r, ctx, ngx_http_zip_module);
 
+    ctx->wait = NULL;  // not waiting initially
+
     return NGX_OK;
 }
 
@@ -242,8 +244,8 @@ ngx_http_zip_subrequest_header_filter(ngx_http_request_t *r)
 
     ctx = ngx_http_get_module_ctx(r->main, ngx_http_zip_module);
     if (ctx != NULL) {
-        if (r->headers_out.status != NGX_HTTP_OK 
-                && r->headers_out.status != NGX_HTTP_PARTIAL_CONTENT) {
+        if (r->headers_out.status != NGX_HTTP_OK
+	    && r->headers_out.status != NGX_HTTP_PARTIAL_CONTENT) {
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                     "mod_zip: a subrequest returned %d, aborting...",
                     r->headers_out.status);
@@ -260,6 +262,7 @@ ngx_http_zip_subrequest_header_filter(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_zip_set_headers(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
 {
+
     if (ngx_http_zip_add_cache_control(r) == NGX_ERROR) {
         return NGX_ERROR;
     }
@@ -388,7 +391,7 @@ ngx_http_zip_subrequest_range(ngx_http_request_t *r, ngx_chain_t *in,
 
         sr_ctx->subrequest_pos = last;
 
-        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+	ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "mod_zip: Buffer range %O-%O Request range %O-%O", start, last, range->start, range->end);
 
         if (range->end <= start || range->start >= last) {
@@ -587,8 +590,32 @@ ngx_http_zip_send_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
         ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                 "mod_zip: subrequest for \"%V?%V\"", 
                 &piece->file->uri, &piece->file->args);
+    if (ctx->wait) {
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                "mod_zip: have a wait context for \"%V?%V\"", 
+                           &ctx->wait->uri, &ctx->wait->args);
+       if (ctx->wait->done) {
+            ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                           "mod_zip: wait \"%V?%V\" done",
+                           &ctx->wait->uri, &ctx->wait->args);
+                        ctx->wait = NULL;
+        } else {
+            ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                           "mod_zip: wait NOT DONE  \"%V?%V\"",
+                           &ctx->wait->uri, &ctx->wait->args);
+            return NGX_AGAIN;
+        }
+    }
         rc = ngx_http_subrequest(r, &piece->file->uri,
-                &piece->file->args, &sr, NULL, 0);
+                &piece->file->args, &sr, NULL, NGX_HTTP_SUBREQUEST_WAITED );
+
+         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                           "mod_zip: ngx_http_subrequest returns %d",
+                           rc);
+	if (rc==NGX_ERROR) {
+	    return NGX_ERROR;
+	}
+
         if ((sr_ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_ctx_t))) == NULL) {
             return NGX_ERROR;
         }
@@ -596,7 +623,15 @@ ngx_http_zip_send_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
         sr_ctx->subrequest_pos = piece->range.start;
         sr_ctx->range = range;
         ngx_http_set_ctx(sr, sr_ctx, ngx_http_zip_module);
-        return rc;
+
+       if (ctx->wait == NULL) {
+            ctx->wait = sr;
+	    return NGX_AGAIN;   // must be NGX_AGAIN
+       } else {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+            "mod_zip : only one subrequest may be waited at the same time; ");
+       }
+       return NGX_ERROR;
     }
 
     if (piece->type == zip_trailer_piece) {
