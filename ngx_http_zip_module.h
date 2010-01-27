@@ -14,15 +14,18 @@ typedef struct {
     ngx_uint_t  crc32;
     ngx_str_t   uri;
     ngx_str_t   args;
-    ngx_uint_t  index;
+    size_t      index; //! zip64 allows for 64bit number of files
     ngx_uint_t  dos_time;
     ngx_uint_t  unix_time;
     ngx_str_t   filename;
-    ngx_uint_t  size;
-    size_t      offset;
+    off_t       size; 
+    off_t       offset;
 
     unsigned    header_sent:1;
     unsigned    trailer_sent:1;
+    unsigned    missing_crc32:1;
+    unsigned    need_zip64:1;
+    unsigned    need_zip64_offset:1;
 } ngx_http_zip_file_t;
 
 typedef struct {
@@ -33,10 +36,20 @@ typedef struct {
     unsigned    boundary_sent:1;
 } ngx_http_zip_range_t;
 
+typedef enum {
+    zip_header_piece, //local file header
+    zip_file_piece, // file data
+    zip_trailer_piece, // data descriptor (for files without CRC, exists if bit 3 of GP flag is set),
+    zip_trailer_piece64, // the same but for zip64 (if zip64 extended information extra field is in file header)
+    zip_central_directory_piece,
+    zip_zip64_directory,
+    zip_zip64_directory_locator
+} ngx_http_zip_piece_e;
+
 typedef struct {
     ngx_http_zip_range_t    range;
     ngx_http_zip_file_t    *file;
-    ngx_int_t               type;
+    ngx_http_zip_piece_e    type;
 } ngx_http_zip_piece_t;
 
 typedef struct {
@@ -49,13 +62,13 @@ typedef struct {
     ngx_uint_t              pieces_n;
     ngx_atomic_uint_t       boundary;
     off_t                   archive_size;
-    ngx_http_request_t      *wait;  /* the request we're waiting on */
+    off_t                   cd_size; // zip central directory size
 
     unsigned                parsed:1;
     unsigned                trailer_sent:1;
     unsigned                abort:1;
-    unsigned                missing_crc32:1;
-    unsigned                missing_size:1;
+    unsigned                missing_crc32:1; // used in subrequest, if true = reads file into memory and calculates it; also to indicate presence of such file
+    unsigned                zip64_used:1;
 } ngx_http_zip_ctx_t;
 
 typedef struct {
@@ -64,18 +77,3 @@ typedef struct {
     off_t                   subrequest_pos;
 } ngx_http_zip_sr_ctx_t;
 
-typedef enum {
-    zip_start_state = 0,
-    zip_filename_state,
-    zip_size_state,
-    zip_uri_state,
-    zip_args_state,
-    zip_eol_state
-} ngx_http_zip_state_e;
-
-typedef enum {
-    zip_header_piece,
-    zip_file_piece,
-    zip_trailer_piece,
-    zip_central_directory_piece
-} ngx_http_zip_piece_e;

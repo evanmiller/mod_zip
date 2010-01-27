@@ -1,6 +1,12 @@
-Changes with mod_zip 1.1.5                                       13 Aug 2009
+Changes with mod_zip 1.1.5                                       03 Sep 2009
 
-    *) Bugfix: compatibility with nginx 0.7.25 and later
+    *) Feature: "If-Range" client header is compared to "Last-Modified" and
+       "ETag" from the upstream file-list server; if there is a match, the
+       "Range" client header is honored, otherwise 200 OK is returned.
+       Using "ETag" requires nginx 0.8.10 or later, or included patch.
+
+    *) Bugfix: compatibility with nginx 0.7.25 and later (but earlier
+       versions are no longer supported)
 
     *) Bugfix: Range works with local, Memcached, and FastCGI files
 

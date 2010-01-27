@@ -1,4 +1,4 @@
-/* Parser definitions for mod_zip */
+/* Ragel Parser definitions for mod_zip64 */
 
 #include "ngx_http_zip_module.h"
 #include "ngx_http_zip_parsers.h"
@@ -20,7 +20,40 @@ ngx_http_zip_file_init(ngx_http_zip_file_t *parsing_file)
 
     parsing_file->crc32 = 0;
     parsing_file->size = 0;
+
+    parsing_file->missing_crc32 = 0;
+    parsing_file->need_zip64 = 0;
+    parsing_file->need_zip64_offset = 0;
 }
+
+inline char hex_char_value(unsigned char ch) {
+    if ('0' <= ch && ch <= '9')
+	return ch - '0';
+    if ('A' <= ch && ch <= 'F')
+	return ch - 'A' + 10;
+    if ('a' <= ch && ch <= 'f')
+	return ch - 'A' + 10;
+    return 0;	
+}
+
+size_t destructive_url_decode_len(unsigned char* start, unsigned char* end)
+{
+    unsigned char *read_pos = start, *write_pos = start;
+    
+    for (; read_pos < end; read_pos++) {
+	unsigned char ch = *read_pos;
+	if (ch == '%' && (read_pos+2 < end)) {
+	    ch = 16 * hex_char_value(*(read_pos+1)) + hex_char_value(*(read_pos+2));
+	    read_pos += 2;
+	    }
+	if (ch == '+')
+	    ch = ' ';
+	*(write_pos++) = ch;
+    }
+    
+    return write_pos - start;
+}
+
 
 static ngx_int_t
 ngx_http_zip_clean_range(ngx_http_zip_range_t *range,
@@ -78,7 +111,8 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
         }
 
         action end_uri {
-            parsing_file->uri.len = fpc - parsing_file->uri.data;
+            //parsing_file->uri.len = fpc - parsing_file->uri.data;
+	    parsing_file->uri.len = destructive_url_decode_len(parsing_file->uri.data, fpc);
         }
         action start_args {
             parsing_file->args.data = fpc;
@@ -92,6 +126,8 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
         action crc_incr {
             if (fc == '-') {
                 ctx->missing_crc32 = 1;
+                parsing_file->missing_crc32 = 1;
+                parsing_file->crc32 = 0xffffffff;
             } else {
                 parsing_file->crc32 *= 16;
                 if (fc >= 'a' && fc <= 'f') {
