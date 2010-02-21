@@ -63,6 +63,7 @@ typedef struct {
     ngx_atomic_uint_t       boundary;
     off_t                   archive_size;
     off_t                   cd_size; // zip central directory size
+    ngx_http_request_t     *wait;
 
     unsigned                parsed:1;
     unsigned                trailer_sent:1;
