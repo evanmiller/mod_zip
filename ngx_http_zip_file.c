@@ -64,7 +64,7 @@ static ngx_zip_data_descriptor_zip64_t ngx_zip_data_descriptor_zip64_template = 
 static ngx_zip_local_file_header_t ngx_zip_local_file_header_template = {
     0x04034b50,  /* local file header signature */
     0x0a,        /* version needed to extract */
-    0x08,        /* general purpose bit flag */
+    zip_utf8_flag | zip_missing_crc32_flag,        /* general purpose bit flag */
     0,           /* compression method */
     0,           /* last mod file date/time */
     0,           /* crc-32 */
@@ -79,7 +79,7 @@ static ngx_zip_central_directory_file_header_t ngx_zip_central_directory_file_he
     0x02014b50,  /* central file header signature */
     zip_version_zip64,      /* version made by */
     zip_version_default,        /* version needed to extract */
-    0x08,        /* general purpose bit flag */
+    zip_utf8_flag | zip_missing_crc32_flag,        /* general purpose bit flag */
     0,           /* compression method */
     0,           /* last mod file time */
     0,           /* crc-32 */
@@ -277,7 +277,7 @@ ngx_http_zip_file_header_chain_link(ngx_http_request_t *r, ngx_http_zip_ctx_t *c
     }
 
     if (!file->missing_crc32) {
-        local_file_header.flags = 0;
+        local_file_header.flags &= ~zip_missing_crc32_flag;
         local_file_header.crc32 = file->crc32;
     }
 
@@ -435,7 +435,7 @@ ngx_http_zip_write_central_directory_entry(u_char *p, ngx_http_zip_file_t *file,
     if (!file->need_zip64_offset)
         central_directory_file_header.offset = file->offset;
     if (!file->missing_crc32)
-        central_directory_file_header.flags = 0;
+        central_directory_file_header.flags &= ~zip_missing_crc32_flag;
 
     if (file->need_zip64) {
         central_directory_file_header.version_needed = zip_version_zip64;

@@ -7,6 +7,8 @@
 
 #define zip_version_default 10
 #define zip_version_zip64 45
+#define zip_utf8_flag 0x0800
+#define zip_missing_crc32_flag 0x08
 
 typedef struct {
     uint16_t   tag; //0x5455
