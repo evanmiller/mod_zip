@@ -1,3 +1,14 @@
+Changes with mod_zip 1.1.6                                       13 Sep 2010
+
+    *) Feature: Support for UTF-8 filenames. Thanks to Robbie Scott/Bandcamp
+
+    *) Feature: Issue subrequests serially. Thanks to Brian Moran/OneHub
+
+    *) Feature: Use Zip64 when archive is larger than 4 GB. Thanks to Vasily 
+       Fedoseyev.
+
+    *) Bugfix: Support spaces in URLs.
+
 Changes with mod_zip 1.1.5                                       03 Sep 2009
 
     *) Feature: "If-Range" client header is compared to "Last-Modified" and
