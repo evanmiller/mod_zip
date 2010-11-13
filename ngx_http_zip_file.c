@@ -177,9 +177,9 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         file = &((ngx_http_zip_file_t *)ctx->files.elts)[i];
         file->offset = offset;
 
-        if(offset >= NGX_MAX_UINT32_VALUE)
+        if(offset >= (off_t) NGX_MAX_UINT32_VALUE)
             ctx->zip64_used = file->need_zip64_offset = 1;
-        if(file->size >= NGX_MAX_UINT32_VALUE) 
+        if(file->size >= (off_t) NGX_MAX_UINT32_VALUE) 
             ctx->zip64_used = file->need_zip64 = 1;
 
         ctx->cd_size += sizeof(ngx_zip_central_directory_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_central_t) 
@@ -212,7 +212,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         }
     }
 
-    ctx->zip64_used |= offset >= NGX_MAX_UINT32_VALUE || ctx->files.nelts >= NGX_MAX_UINT16_VALUE;
+    ctx->zip64_used |= offset >= (off_t) NGX_MAX_UINT32_VALUE || ctx->files.nelts >= NGX_MAX_UINT16_VALUE;
 
     ctx->cd_size += sizeof(ngx_zip_end_of_central_directory_record_t);
     if (ctx->zip64_used)
@@ -384,9 +384,9 @@ ngx_http_zip_central_directory_chain_link(ngx_http_request_t *r, ngx_http_zip_ct
         - (!!ctx->zip64_used)*(sizeof(ngx_zip_zip64_end_of_central_directory_record_t) 
                 + sizeof(ngx_zip_zip64_end_of_central_directory_locator_t));
 
-    if (cd_size < NGX_MAX_UINT32_VALUE)
+    if (cd_size < (off_t) NGX_MAX_UINT32_VALUE)
         eocdr.size = cd_size;
-    if (piece->range.start < NGX_MAX_UINT32_VALUE)
+    if (piece->range.start < (off_t) NGX_MAX_UINT32_VALUE)
         eocdr.offset = piece->range.start;
 
     if (ctx->zip64_used) {
