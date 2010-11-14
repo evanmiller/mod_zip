@@ -218,7 +218,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
 
         if (ctx->unicode_path) {
             size_t inlen = file->filename.len, outlen, outleft;
-            size_t res, len;
+            size_t res;
             u_char *p, *in;
 
             //inbuf
@@ -243,13 +243,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         
             file->filename.len = outlen - outleft;
 
-            p = file->filename_utf8.data;
-            len = file->filename_utf8.len;
-            file->filename_utf8_crc32 = 0;
-            while(len--) {
-                file->filename_utf8_crc32 = ngx_crc32_table256[(file->filename_utf8_crc32 ^ *p++) & 0xff] 
-                    ^ (file->filename_utf8_crc32 >> 8);
-            }
+            file->filename_utf8_crc32 = ngx_crc32_long(file->filename_utf8.data, file->filename_utf8.len);
         }
 
         if(offset >= (off_t) NGX_MAX_UINT32_VALUE)
@@ -365,7 +359,7 @@ ngx_http_zip_file_header_chain_link(ngx_http_request_t *r, ngx_http_zip_ctx_t *c
     if (ctx->unicode_path) {
         extra_field_unicode_path = ngx_zip_extra_field_unicode_path_template;
         extra_field_unicode_path.crc32 = file->filename_utf8_crc32;
-        extra_field_unicode_path.size = sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len - 4;
+        extra_field_unicode_path.size = sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len;
 
         local_file_header.extra_field_len += sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len;
     }
@@ -383,13 +377,17 @@ ngx_http_zip_file_header_chain_link(ngx_http_request_t *r, ngx_http_zip_ctx_t *c
     ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t), file->filename.data, file->filename.len);
     ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len, 
             &extra_field_local, sizeof(ngx_zip_extra_field_local_t));
-    if (file->need_zip64)
+    if (file->need_zip64) {
         ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t), 
                 &extra_field_zip64, sizeof(ngx_zip_extra_field_zip64_sizes_only_t));
-    
-    if (ctx->unicode_path) {
-        ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t) + sizeof(ngx_zip_extra_field_zip64_sizes_only_t), &extra_field_unicode_path, sizeof(ngx_zip_extra_field_unicode_path_t));
-        ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t) + sizeof(ngx_zip_extra_field_zip64_sizes_only_t) + sizeof(ngx_zip_extra_field_unicode_path_t), file->filename_utf8.data, file->filename_utf8.len);
+
+        if (ctx->unicode_path) {
+            ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t) + sizeof(ngx_zip_extra_field_zip64_sizes_only_t), &extra_field_unicode_path, sizeof(ngx_zip_extra_field_unicode_path_t));
+            ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t) + sizeof(ngx_zip_extra_field_zip64_sizes_only_t) + sizeof(ngx_zip_extra_field_unicode_path_t), file->filename_utf8.data, file->filename_utf8.len);
+        }
+    } else if (ctx->unicode_path) {
+        ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t), &extra_field_unicode_path, sizeof(ngx_zip_extra_field_unicode_path_t));
+        ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t) + sizeof(ngx_zip_extra_field_unicode_path_t), file->filename_utf8.data, file->filename_utf8.len);
     }
 
     ngx_http_zip_truncate_buffer(b, &piece->range, range);
@@ -570,7 +568,7 @@ ngx_http_zip_write_central_directory_entry(u_char *p, ngx_http_zip_file_t *file,
     if (ctx->unicode_path) {
         extra_field_unicode_path = ngx_zip_extra_field_unicode_path_template;
         extra_field_unicode_path.crc32 = file->filename_utf8_crc32;
-        extra_field_unicode_path.size = sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len - 4;
+        extra_field_unicode_path.size = sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len;
 
         central_directory_file_header.extra_field_len += sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len;
     }
