@@ -33,8 +33,8 @@ corresponds to a location in your nginx.conf; the file can be on disk, from an
 upstream, or from another module.  The file name can include a directory path,
 and is what will be extracted from the ZIP file. Example:
 
-1034ab38 428    /foo.txt   My Document1.txt
-83e8110b 100339 /bar.txt   My Other Document1.txt
+    1034ab38 428    /foo.txt   My Document1.txt
+    83e8110b 100339 /bar.txt   My Other Document1.txt
 
 Files are retrieved and encoded in order. If a file cannot be found or the file
 request returns any sort of error, the download is aborted.
