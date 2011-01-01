@@ -1,16 +1,25 @@
 mod_zip
--------
+=======
 
 mod_zip assembles ZIP archives dynamically. It can stream component files from
 upstream servers with nginx's native proxying code, so that the process never
 takes up more than a few KB of RAM at a time, even while assembling archives that
 are (potentially) hundreds of megabytes.
 
+
+Installation
+------------
+
 To install, compile nginx with the following option:
 
   --add-module=/path/to/this/directory
 
-nginx 0.7.25 or later is required.
+nginx 0.7.25 or later is required. If libiconv is present, support for the
+"X-Archive-Charset" header is enabled; see below.
+
+
+Usage
+-----
 
 The module is activated when the original response (presumably from an
 upstream) includes the following HTTP header:
@@ -32,6 +41,18 @@ request returns any sort of error, the download is aborted.
 
 The CRC-32 is optional. Put "-" if you don't know the CRC-32; note that in this
 case mod_zip will disable support for the "Range" header.
+
+To re-encode the filenames as UTF-8, add the following header to the upstream
+response:
+
+  X-Archive-Charset: <insert original charset name>
+
+The original charset name should be something that iconv understands. (This feature
+only works if iconv is present.)
+
+
+Tips
+----
 
 Tip: Add a header "Content-Disposition: attachment; filename=foobar.zip" in the
 upstream response if you would like the client to name the file "foobar.zip"
