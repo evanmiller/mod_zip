@@ -60,4 +60,7 @@ upstream response if you would like the client to name the file "foobar.zip"
 Tip 2: To save bandwidth, add a "Last-Modified" header in the upstream response; 
 mod_zip will then honor the "If-Range" header from clients.
 
+Tip 3: To wipe the X-Archive-Files header from the response sent to the client,
+add "proxy_hide_header X-Archive-Files;" to your nginx.conf
+
 Questions/patches may be directed to Evan Miller, emmiller@gmail.com.
