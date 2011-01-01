@@ -12,7 +12,7 @@ Installation
 
 To install, compile nginx with the following option:
 
-  --add-module=/path/to/this/directory
+    --add-module=/path/to/this/directory
 
 nginx 0.7.25 or later is required. If libiconv is present, support for the
 "X-Archive-Charset" header is enabled; see below.
@@ -24,7 +24,7 @@ Usage
 The module is activated when the original response (presumably from an
 upstream) includes the following HTTP header:
 
-  X-Archive-Files: zip
+    X-Archive-Files: zip
 
 It then scans the response body for a list of files. The syntax is a 
 space-separated list of the file checksum (CRC-32), size (in bytes), location
@@ -45,7 +45,7 @@ case mod_zip will disable support for the "Range" header.
 To re-encode the filenames as UTF-8, add the following header to the upstream
 response:
 
-  X-Archive-Charset: <insert original charset name>
+    X-Archive-Charset: [original charset name]
 
 The original charset name should be something that iconv understands. (This feature
 only works if iconv is present.)
