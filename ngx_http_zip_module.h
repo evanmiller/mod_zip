@@ -18,6 +18,8 @@ typedef struct {
     ngx_uint_t  dos_time;
     ngx_uint_t  unix_time;
     ngx_str_t   filename;
+    ngx_str_t   filename_utf8;
+    uint32_t    filename_utf8_crc32;
     off_t       size; 
     off_t       offset;
 
@@ -70,6 +72,7 @@ typedef struct {
     unsigned                abort:1;
     unsigned                missing_crc32:1; // used in subrequest, if true = reads file into memory and calculates it; also to indicate presence of such file
     unsigned                zip64_used:1;
+    unsigned                unicode_path:1;
 } ngx_http_zip_ctx_t;
 
 typedef struct {

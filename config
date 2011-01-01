@@ -4,3 +4,20 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_module.c"
 NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_parsers.c"
 NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_file.c"
 NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_headers.c"
+
+ngx_feature="iconv_open()"
+ngx_feature_name="NGX_ZIP_HAVE_ICONV"
+ngx_feature_run=no
+ngx_feature_incs="#include <iconv.h>"
+ngx_feature_path=
+case "$NGX_PLATFORM" in
+    Linux:*)
+        ngx_feature_libs=
+    ;;
+
+    *)
+        ngx_feature_libs="-liconv"
+    ;;
+esac
+ngx_feature_test="iconv_open(\"IBM-850\", \"ISO8859-1\");"
+. auto/feature

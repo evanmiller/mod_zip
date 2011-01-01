@@ -25,6 +25,13 @@ typedef struct {
     uint32_t   mtime;
 } ngx_zip_extra_field_central_t;
 
+typedef struct {
+    uint16_t   tag; //0x7075
+    uint16_t   size;
+    uint8_t   version; //1
+    uint32_t   crc32;
+} ngx_zip_extra_field_unicode_path_t;
+
 typedef struct { // not entirely writen...
     uint16_t   tag; //0x0001
     uint16_t   size; // size of this record (32)

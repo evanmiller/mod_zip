@@ -14,6 +14,9 @@ ngx_http_zip_file_init(ngx_http_zip_file_t *parsing_file)
 
     parsing_file->filename.data = NULL;
     parsing_file->filename.len = 0;
+    
+    parsing_file->filename_utf8.data = NULL;
+    parsing_file->filename_utf8.len = 0;
 
     parsing_file->header_sent = 0;
     parsing_file->trailer_sent = 0;
