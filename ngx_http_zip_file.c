@@ -223,8 +223,6 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
 #ifdef NGX_ZIP_HAVE_ICONV
         if (ctx->unicode_path) {
             size_t inlen = file->filename.len, outlen, outleft;
-            size_t res;
-            u_char *p, *in;
 
             //inbuf
             file->filename_utf8.data = ngx_pnalloc(r->pool, file->filename.len + 1);
@@ -236,15 +234,8 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
             outlen = outleft = inlen * sizeof(int) + 15;
             file->filename.data = ngx_pnalloc(r->pool, outlen + 1);
 
-            in = file->filename_utf8.data;
-            p = file->filename.data;
-
             //reset state
             iconv(iconv_cd, NULL, NULL, NULL, NULL);
-
-            //convert the string
-            res = iconv(iconv_cd, (char **)&in, &inlen, (char **)&p, &outleft);
-            //XXX if (res == (size_t)-1) { ? }
         
             file->filename.len = outlen - outleft;
 
