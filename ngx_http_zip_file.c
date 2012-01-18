@@ -243,6 +243,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
 
             //convert the string
             iconv(iconv_cd, (char **)&in, &inlen, (char **)&p, &outleft);
+	    //XXX if (res == (size_t)-1) { ? }
         
             file->filename.len = outlen - outleft;
 
