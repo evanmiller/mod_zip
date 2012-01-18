@@ -196,10 +196,8 @@ ngx_http_zip_add_partial_content_range(ngx_http_request_t *r,
 ngx_int_t
 ngx_http_zip_strip_range_header(ngx_http_request_t *r)
 {
-    ngx_list_part_t    *part;
     ngx_table_elt_t    *header;
 
-    part = &r->headers_in.headers.part;
     header = r->headers_in.range;
 
     if (header) {
