@@ -63,4 +63,7 @@ mod_zip will then honor the "If-Range" header from clients.
 Tip 3: To wipe the X-Archive-Files header from the response sent to the client,
 use the headers_more module: http://wiki.nginx.org/NginxHttpHeadersMoreModule
 
+Tip 4: Using mod_zip with SSL will not work if the backend response has
+a Set-Cookie header. Wipe it with the headers_more module (see tip 3).
+
 Questions/patches may be directed to Evan Miller, emmiller@gmail.com.
