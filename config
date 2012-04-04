@@ -21,3 +21,8 @@ case "$NGX_PLATFORM" in
 esac
 ngx_feature_test="iconv_open(\"IBM-850\", \"ISO8859-1\");"
 . auto/feature
+
+if [ $ngx_found = yes ]; then
+    CORE_LIBS="$CORE_LIBS $ngx_feature_libs"
+    ngx_found=no
+fi
