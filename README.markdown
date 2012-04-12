@@ -50,6 +50,29 @@ response:
 The original charset name should be something that iconv understands. (This feature
 only works if iconv is present.)
 
+If you set original charset as 'native':
+
+    X-Archive-Charset: native;
+
+filenames from file list are accepted as already in native charset and zip's
+general purpose flag (11 bit), that indicates UTF-8 encoded names, won't be set.
+So archivers will know it's native charset.
+
+Sometimes there is problem converting UTF-8 names to native(CP866) charset that
+causes popular archivers to fail to recognize them. And at the same time you want
+data not to be lost so that smart archivers can use Unicode Path extra field.
+You can provide you own, adapted representation of filename in native charset along
+with original UTF-8 name in one string. You just need to add following header:
+
+    X-Archive-Name-Sep: [separator];
+
+So your file list should look like:
+
+    <CRC-32> <size> <path> <native-filename><separator><utf8-filename>
+    ...
+
+then filename field will contatin <native-filename> and Unicode Path extra field
+will contatin <utf8-filename>.
 
 Tips
 ----
