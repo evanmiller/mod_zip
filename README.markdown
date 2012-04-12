@@ -71,8 +71,8 @@ So your file list should look like:
     <CRC-32> <size> <path> <native-filename><separator><utf8-filename>
     ...
 
-then filename field will contatin <native-filename> and Unicode Path extra field
-will contatin <utf8-filename>.
+then filename field will contatin 'native-filename' and Unicode Path extra field
+will contatin 'utf8-filename'.
 
 Tips
 ----
