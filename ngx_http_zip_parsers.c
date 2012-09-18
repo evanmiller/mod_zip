@@ -100,46 +100,46 @@ static const char _request_actions[] = {
 
 static const char _request_key_offsets[] = {
 	0, 0, 7, 8, 11, 14, 16, 18, 
-	19, 22, 25, 32, 33, 34
+	19, 22, 29, 30, 31
 };
 
 static const char _request_trans_keys[] = {
 	45, 48, 57, 65, 70, 97, 102, 32, 
 	32, 48, 57, 32, 48, 57, 32, 63, 
-	32, 63, 32, 0, 10, 13, 0, 10, 
-	13, 32, 48, 57, 65, 70, 97, 102, 
-	32, 32, 10, 13, 45, 48, 57, 65, 
-	70, 97, 102, 0
+	32, 63, 32, 0, 10, 13, 32, 48, 
+	57, 65, 70, 97, 102, 32, 32, 10, 
+	13, 45, 48, 57, 65, 70, 97, 102, 
+	0
 };
 
 static const char _request_single_lengths[] = {
 	0, 1, 1, 1, 1, 2, 2, 1, 
-	3, 3, 1, 1, 1, 3
+	3, 1, 1, 1, 3
 };
 
 static const char _request_range_lengths[] = {
 	0, 3, 0, 1, 1, 0, 0, 0, 
-	0, 0, 3, 0, 0, 3
+	0, 3, 0, 0, 3
 };
 
 static const char _request_index_offsets[] = {
 	0, 0, 5, 7, 10, 13, 16, 19, 
-	21, 25, 29, 34, 36, 38
+	21, 25, 30, 32, 34
 };
 
 static const char _request_indicies[] = {
 	0, 2, 2, 2, 1, 3, 1, 3, 
 	4, 1, 5, 4, 1, 5, 1, 6, 
-	8, 9, 7, 11, 10, 1, 1, 1, 
-	12, 1, 13, 13, 12, 3, 14, 14, 
-	14, 1, 1, 15, 17, 16, 18, 18, 
-	0, 2, 2, 2, 1, 0
+	8, 9, 7, 11, 10, 1, 13, 13, 
+	12, 3, 14, 14, 14, 1, 1, 15, 
+	17, 16, 18, 18, 0, 2, 2, 2, 
+	1, 0
 };
 
 static const char _request_trans_targs[] = {
-	2, 0, 10, 3, 4, 5, 6, 6, 
-	7, 11, 8, 7, 9, 13, 10, 12, 
-	12, 7, 13
+	2, 0, 9, 3, 4, 5, 6, 6, 
+	7, 10, 8, 7, 8, 12, 9, 11, 
+	11, 7, 12
 };
 
 static const char _request_trans_actions[] = {
@@ -149,7 +149,7 @@ static const char _request_trans_actions[] = {
 };
 
 static const int request_start = 1;
-static const int request_first_final = 13;
+static const int request_first_final = 12;
 static const int request_error = 0;
 
 static const int request_en_main = 1;
@@ -203,7 +203,7 @@ _resume:
 			else if ( (*p) > *_mid )
 				_lower = _mid + 1;
 			else {
-				_trans += (_mid - _keys);
+				_trans += (unsigned int)(_mid - _keys);
 				goto _match;
 			}
 		}
@@ -226,7 +226,7 @@ _resume:
 			else if ( (*p) > _mid[1] )
 				_lower = _mid + 2;
 			else {
-				_trans += ((_mid - _keys)>>1);
+				_trans += (unsigned int)((_mid - _keys)>>1);
 				goto _match;
 			}
 		}
@@ -446,7 +446,7 @@ _resume:
 			else if ( (*p) > *_mid )
 				_lower = _mid + 1;
 			else {
-				_trans += (_mid - _keys);
+				_trans += (unsigned int)(_mid - _keys);
 				goto _match;
 			}
 		}
@@ -469,7 +469,7 @@ _resume:
 			else if ( (*p) > _mid[1] )
 				_lower = _mid + 2;
 			else {
-				_trans += ((_mid - _keys)>>1);
+				_trans += (unsigned int)((_mid - _keys)>>1);
 				goto _match;
 			}
 		}

@@ -160,7 +160,7 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
                   ( "?" [^ ]+ >start_args %end_args )?
                   " "+
                   [^ ] >start_filename
-                  [^\r\n\0]+ %end_filename
+                  [^\r\n\0]* %end_filename
                   [\r\n]+
                 )+;
 
