@@ -177,6 +177,8 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
 {
     ngx_uint_t i, piece_i;
     off_t offset = 0;
+    time_t unix_time = 0;
+    ngx_uint_t dos_time = 0;
     ngx_http_zip_file_t  *file;
     ngx_http_zip_piece_t *header_piece, *file_piece, *trailer_piece, *cd_piece;
     ngx_http_variable_value_t  *vv;
@@ -216,9 +218,13 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         return NGX_ERROR;
     
     ctx->cd_size = 0;
+    unix_time = time(NULL);
+    dos_time = ngx_dos_time(unix_time);
     for (piece_i = i = 0; i < ctx->files.nelts; i++) {
         file = &((ngx_http_zip_file_t *)ctx->files.elts)[i];
         file->offset = offset;
+        file->unix_time = unix_time;
+        file->dos_time = dos_time;
 
 #ifdef NGX_ZIP_HAVE_ICONV
         if (ctx->unicode_path) {
@@ -337,9 +343,6 @@ ngx_http_zip_file_header_chain_link(ngx_http_request_t *r, ngx_http_zip_ctx_t *c
     
     b->memory = 1;
     b->last = b->pos + len;
-
-    file->unix_time = time(NULL);
-    file->dos_time = ngx_dos_time(file->unix_time);
 
     /* A note about the ZIP format: in order to appease all ZIP software I
      * could find, the local file header contains the file sizes but not the
