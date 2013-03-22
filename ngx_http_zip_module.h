@@ -73,6 +73,7 @@ typedef struct {
     unsigned                missing_crc32:1; // used in subrequest, if true = reads file into memory and calculates it; also to indicate presence of such file
     unsigned                zip64_used:1;
     unsigned                unicode_path:1;
+    unsigned                native_charset:1;
 } ngx_http_zip_ctx_t;
 
 typedef struct {

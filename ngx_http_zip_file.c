@@ -8,6 +8,7 @@
 #endif
 
 static ngx_str_t ngx_http_zip_header_charset_name = ngx_string("upstream_http_x_archive_charset");
+static ngx_str_t ngx_http_zip_header_name_separator = ngx_string("upstream_http_x_archive_name_sep");
 
 #define NGX_MAX_UINT16_VALUE 0xffff
 
@@ -167,6 +168,23 @@ ngx_http_zip_truncate_buffer(ngx_buf_t *b,
     }
 }
 
+static const char *
+ngx_http_zip_strnrstr(const char * str, ngx_uint_t n,
+                     const char * sub_str, ngx_uint_t sub_n)
+{
+    ngx_int_t max_shift = n - sub_n;
+    ngx_uint_t i;
+    for(; max_shift >= 0; --max_shift) {
+        for(i = 0; i <= n; ++i) {
+            if(i == sub_n)
+                return &str[max_shift];
+            else if(str[max_shift + i] != sub_str[i])
+                break;
+        }
+    }
+    return NULL;
+}
+
 #ifndef ICONV_CSNMAXLEN
 #define ICONV_CSNMAXLEN 64
 #endif
@@ -187,28 +205,80 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         return NGX_ERROR;
 
     ctx->unicode_path = 0;
-
 #ifdef NGX_ZIP_HAVE_ICONV
     iconv_t *iconv_cd = NULL;
-
-    if (ngx_http_upstream_header_variable(r, vv, (uintptr_t)(&ngx_http_zip_header_charset_name)) == NGX_OK 
-            && !vv->not_found && ngx_strncmp(vv->data, "utf8", sizeof("utf8") - 1) != 0) {
-        char encoding[ICONV_CSNMAXLEN];
-        snprintf(encoding, sizeof(encoding), "%s//TRANSLIT//IGNORE", vv->data);
-
-        iconv_cd = iconv_open((const char *)encoding, "utf-8");
-        if (iconv_cd == (iconv_t)(-1)) {
-            ngx_log_error(NGX_LOG_WARN, r->connection->log, errno,
-                    "mod_zip: iconv_open('%s', 'utf-8') failed",
-                    vv->data);
-            iconv_cd = NULL;
-        }
-    }
-
-    if (iconv_cd) {
-        ctx->unicode_path = 1;
-    }
 #endif
+
+    // Let's try to find special header that contains separator string.
+    // What for this strange separator string you ask?
+    // Sometimes there might be a problem converting UTF-8 to zips native
+    // charset(CP866), because it's not 1:1 conversion. So my solution is to
+    // developers provide their own version of converted filename and pass it
+    // to mod_zip along with UTF-8 filename which will go straight to Unicode
+    // path extra field (thanks to tony2001). So separator is a solution that doesn't
+    // break current format. And allows passing file name in both formats as one string.
+    //
+    // Normally we pass:
+    // CRC32 <size> <path> <filename>\n
+    // ...
+    // * <filename> passed to archive as filename w/o conversion
+    // * UFT-8 flag for filename is set
+    //
+    // tony2001's X-Archive-Charset: <charset> way:
+    // CRC32 <size> <path> <filename>\n
+    // ...
+    // * <filename> is accepted to be UTF-8 string
+    // * <filename>, converted to <charset> and passed to archive as filename
+    // * <filename> passed to Unicode path extra field
+    // * UFT-8 flag for filename is not set
+    //
+    // My X-Archive-Name-Sep: <sep> solution:
+    // CRC32 <size> <path> <native-filename><sep><utf8-filename>\n
+    // ...
+    // * <native-filename> passed to archive as filename w/o conversion
+    // * <utf8-filename> passed to Unicode path extra field
+    // * UFT-8 flag for filename is not set
+    //
+    // You just need to provide separator that won't interfere with file names. I suggest using '/'
+    // as it is ASCII character and forbidden on most (if not all) platforms as a part of filename.
+    //
+    // Empty separator string means no UTF-8 version provided. Usefull when we need to pass only
+    // names encoded in native charset. It's equal to 'X-Archive-Charset: native;'.
+    // Note: Currently it is impossible after '[PATCH] Support for UTF-8 file names.'(4f61592b)
+    // because UFT-8 flag (zip_utf8_flag) is set default for templates.
+
+    if(ngx_http_upstream_header_variable(r, vv, (uintptr_t)(&ngx_http_zip_header_name_separator)) == NGX_OK && !vv->not_found) {
+        ctx->native_charset = 1;
+        if(vv->len)
+            ctx->unicode_path = 1;            
+    } else {
+#ifdef NGX_ZIP_HAVE_ICONV
+        if (ngx_http_upstream_header_variable(r, vv, (uintptr_t)(&ngx_http_zip_header_charset_name)) == NGX_OK
+                && !vv->not_found && ngx_strncmp(vv->data, "utf8", sizeof("utf8") - 1) != 0) {
+
+            if(ngx_strncmp(vv->data, "native", sizeof("native") - 1))
+            {
+                char encoding[ICONV_CSNMAXLEN];
+                snprintf(encoding, sizeof(encoding), "%s//TRANSLIT//IGNORE", vv->data);
+
+                iconv_cd = iconv_open((const char *)encoding, "utf-8");
+                if (iconv_cd == (iconv_t)(-1)) {
+                    ngx_log_error(NGX_LOG_WARN, r->connection->log, errno,
+                                  "mod_zip: iconv_open('%s', 'utf-8') failed",
+                                  vv->data);
+                    iconv_cd = NULL;
+                }
+                else
+                {
+                    ctx->unicode_path = 1;
+                    ctx->native_charset = 1;
+                }
+            }
+            else
+                ctx->native_charset = 1;
+        }
+#endif
+    }
 
     // pieces: for each file: header, data, footer (if needed) -> 2 or 3 per file
     // plus file footer (CD + [zip64 end + zip64 locator +] end of cd) in one chunk
@@ -226,36 +296,51 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         file->unix_time = unix_time;
         file->dos_time = dos_time;
 
+        if(ctx->unicode_path) {
 #ifdef NGX_ZIP_HAVE_ICONV
-        if (ctx->unicode_path) {
-            size_t inlen = file->filename.len, outlen, outleft;
-            u_char *p, *in;
+            if (iconv_cd) {
+                size_t inlen = file->filename.len, outlen, outleft;
+                u_char *p, *in;
 
-            //inbuf
-            file->filename_utf8.data = ngx_pnalloc(r->pool, file->filename.len + 1);
-            ngx_memcpy(file->filename_utf8.data, file->filename.data, file->filename.len);
-            file->filename_utf8.len = file->filename.len;
-            file->filename_utf8.data[file->filename.len] = '\0';
+                //inbuf
+                file->filename_utf8.data = ngx_pnalloc(r->pool, file->filename.len + 1);
+                ngx_memcpy(file->filename_utf8.data, file->filename.data, file->filename.len);
+                file->filename_utf8.len = file->filename.len;
+                file->filename_utf8.data[file->filename.len] = '\0';
 
-            //outbuf
-            outlen = outleft = inlen * sizeof(int) + 15;
-            file->filename.data = ngx_pnalloc(r->pool, outlen + 1);
+                //outbuf
+                outlen = outleft = inlen * sizeof(int) + 15;
+                file->filename.data = ngx_pnalloc(r->pool, outlen + 1);
 
-            in = file->filename_utf8.data;
-            p = file->filename.data;
+                in = file->filename_utf8.data;
+                p = file->filename.data;
 
-            //reset state
-            iconv(iconv_cd, NULL, NULL, NULL, NULL);
+                //reset state
+                iconv(iconv_cd, NULL, NULL, NULL, NULL);
 
-            //convert the string
-            iconv(iconv_cd, (char **)&in, &inlen, (char **)&p, &outleft);
-	    //XXX if (res == (size_t)-1) { ? }
-        
-            file->filename.len = outlen - outleft;
+                //convert the string
+                iconv(iconv_cd, (char **)&in, &inlen, (char **)&p, &outleft);
+                //XXX if (res == (size_t)-1) { ? }
 
-            file->filename_utf8_crc32 = ngx_crc32_long(file->filename_utf8.data, file->filename_utf8.len);
-        }
+                file->filename.len = outlen - outleft;
+
+                file->filename_utf8_crc32 = ngx_crc32_long(file->filename_utf8.data, file->filename_utf8.len);
+            }
 #endif
+              else if(vv->len) {
+                const char * sep = ngx_http_zip_strnrstr((const char*)file->filename.data, file->filename.len,
+                                                         (const char*)vv->data, vv->len);
+                if(sep) {
+                    size_t utf8_len = file->filename.len - vv->len - (size_t)(sep - (const char *)file->filename.data);
+                    file->filename_utf8.data = ngx_pnalloc(r->pool, utf8_len);
+                    file->filename_utf8.len = utf8_len;
+                    ngx_memcpy(file->filename_utf8.data, sep + vv->len, utf8_len);
+
+                    file->filename.len -= utf8_len + vv->len;
+                    file->filename_utf8_crc32 = ngx_crc32_long(file->filename_utf8.data, file->filename_utf8.len);
+                } /* else { } */    // Separator not found. Okay, no extra field for this one then.
+            }
+        }
 
         if(offset >= (off_t) NGX_MAX_UINT32_VALUE)
             ctx->zip64_used = file->need_zip64_offset = 1;
@@ -266,7 +351,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
             + (file->need_zip64_offset ? 
                     (file->need_zip64 ? sizeof(ngx_zip_extra_field_zip64_sizes_offset_t) : sizeof(ngx_zip_extra_field_zip64_offset_only_t)) :
                     (file->need_zip64 ? sizeof(ngx_zip_extra_field_zip64_sizes_only_t) : 0) +
-                    (ctx->unicode_path ? (sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len): 0)
+                    (ctx->unicode_path && file->filename_utf8.len ? (sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len): 0)
               );
 
         header_piece = &ctx->pieces[piece_i++];
@@ -275,7 +360,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         header_piece->range.start = offset;
         header_piece->range.end = offset += sizeof(ngx_zip_local_file_header_t)
             + file->filename.len + sizeof(ngx_zip_extra_field_local_t) + (file->need_zip64? sizeof(ngx_zip_extra_field_zip64_sizes_only_t):0)
-            + (ctx->unicode_path ? (sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len): 0);
+            + (ctx->unicode_path && file->filename_utf8.len ? (sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len): 0);
 
         file_piece = &ctx->pieces[piece_i++];
         file_piece->type = zip_file_piece;
@@ -295,7 +380,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
     }
 
 #ifdef NGX_ZIP_HAVE_ICONV
-    if (ctx->unicode_path) {
+    if (iconv_cd) {
         iconv_close(iconv_cd);
     }
 #endif
@@ -335,7 +420,7 @@ ngx_http_zip_file_header_chain_link(ngx_http_request_t *r, ngx_http_zip_ctx_t *c
 
     size_t len = sizeof(ngx_zip_local_file_header_t) + file->filename.len 
         + sizeof(ngx_zip_extra_field_local_t) + (file->need_zip64? sizeof(ngx_zip_extra_field_zip64_sizes_only_t):0
-        + (ctx->unicode_path ? (sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len): 0));
+        + (ctx->unicode_path && file->filename_utf8.len ? (sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len): 0));
 
     if ((link = ngx_alloc_chain_link(r->pool)) == NULL || (b = ngx_calloc_buf(r->pool)) == NULL 
             || (b->pos = ngx_pcalloc(r->pool, len)) == NULL)
@@ -353,7 +438,7 @@ ngx_http_zip_file_header_chain_link(ngx_http_request_t *r, ngx_http_zip_ctx_t *c
     local_file_header = ngx_zip_local_file_header_template;
     local_file_header.mtime = file->dos_time;
     local_file_header.filename_len = file->filename.len;
-    if (ctx->unicode_path) {
+    if (ctx->native_charset) {
         local_file_header.flags &= ~zip_utf8_flag;
     }
     extra_field_zip64 = ngx_zip_extra_field_zip64_sizes_only_template;
@@ -367,7 +452,7 @@ ngx_http_zip_file_header_chain_link(ngx_http_request_t *r, ngx_http_zip_ctx_t *c
     }
 
     extra_field_unicode_path = ngx_zip_extra_field_unicode_path_template;
-    if (ctx->unicode_path) {
+    if (ctx->unicode_path && file->filename_utf8.len) {
         extra_field_unicode_path.crc32 = file->filename_utf8_crc32;
         extra_field_unicode_path.size = sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len;
 
@@ -391,11 +476,11 @@ ngx_http_zip_file_header_chain_link(ngx_http_request_t *r, ngx_http_zip_ctx_t *c
         ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t), 
                 &extra_field_zip64, sizeof(ngx_zip_extra_field_zip64_sizes_only_t));
 
-        if (ctx->unicode_path) {
+        if (ctx->unicode_path && file->filename_utf8.len) {
             ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t) + sizeof(ngx_zip_extra_field_zip64_sizes_only_t), &extra_field_unicode_path, sizeof(ngx_zip_extra_field_unicode_path_t));
             ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t) + sizeof(ngx_zip_extra_field_zip64_sizes_only_t) + sizeof(ngx_zip_extra_field_unicode_path_t), file->filename_utf8.data, file->filename_utf8.len);
         }
-    } else if (ctx->unicode_path) {
+    } else if (ctx->unicode_path && file->filename_utf8.len) {
         ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t), &extra_field_unicode_path, sizeof(ngx_zip_extra_field_unicode_path_t));
         ngx_memcpy(b->pos + sizeof(ngx_zip_local_file_header_t) + file->filename.len + sizeof(ngx_zip_extra_field_local_t) + sizeof(ngx_zip_extra_field_unicode_path_t), file->filename_utf8.data, file->filename_utf8.len);
     }
@@ -535,7 +620,7 @@ ngx_http_zip_write_central_directory_entry(u_char *p, ngx_http_zip_file_t *file,
     central_directory_file_header.mtime = file->dos_time;
     central_directory_file_header.crc32 = file->crc32;
 
-    if (ctx->unicode_path) {
+    if (ctx->native_charset) {
         central_directory_file_header.flags &= ~zip_utf8_flag;
     }
 
@@ -576,7 +661,7 @@ ngx_http_zip_write_central_directory_entry(u_char *p, ngx_http_zip_file_t *file,
     extra_field_central.mtime = file->unix_time;
 
     extra_field_unicode_path = ngx_zip_extra_field_unicode_path_template;
-    if (ctx->unicode_path) {
+    if (ctx->unicode_path && file->filename_utf8.len) {
         extra_field_unicode_path.crc32 = file->filename_utf8_crc32;
         extra_field_unicode_path.size = sizeof(ngx_zip_extra_field_unicode_path_t) + file->filename_utf8.len;
 
@@ -597,7 +682,7 @@ ngx_http_zip_write_central_directory_entry(u_char *p, ngx_http_zip_file_t *file,
         p += extra_zip64_ptr_size;
     }
 
-    if (ctx->unicode_path) {
+    if (ctx->unicode_path && file->filename_utf8.len) {
         ngx_memcpy(p, &extra_field_unicode_path, sizeof(ngx_zip_extra_field_unicode_path_t));
         p += sizeof(ngx_zip_extra_field_unicode_path_t);
 
