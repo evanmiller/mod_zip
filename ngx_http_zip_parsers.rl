@@ -151,8 +151,7 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
             parsing_file->filename.len = fpc - parsing_file->filename.data;
         }
 
-        main := (
-                  ( [0-9a-fA-F]+ | "-" ) >start_file $crc_incr
+        file_spec = ( [0-9a-fA-F]+ | "-" ) >start_file $crc_incr
                   " "+
                   [0-9]+ $size_incr
                   " "+
@@ -160,9 +159,9 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
                   ( "?" [^ ]+ >start_args %end_args )?
                   " "+
                   [^ ] >start_filename
-                  [^\r\n\0]* %end_filename
-                  [\r\n]+
-                )+;
+                  [^\r\n\0]* %end_filename;
+
+        main := file_spec ([\r\n]+ file_spec)* [\r\n]*;
 
        write init;
        write exec;
