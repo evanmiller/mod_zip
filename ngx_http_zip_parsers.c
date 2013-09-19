@@ -49,12 +49,12 @@ destructive_url_decode_len(unsigned char* start, unsigned char* end)
     
     for (; read_pos < end; read_pos++) {
 	unsigned char ch = *read_pos;
+	if (ch == '+')
+	    ch = ' ';
 	if (ch == '%' && (read_pos+2 < end)) {
 	    ch = 16 * hex_char_value(*(read_pos+1)) + hex_char_value(*(read_pos+2));
 	    read_pos += 2;
 	    }
-	if (ch == '+')
-	    ch = ' ';
 	*(write_pos++) = ch;
     }
     

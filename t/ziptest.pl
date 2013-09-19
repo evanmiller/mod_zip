@@ -2,7 +2,7 @@
 
 # TODO tests for Zip64
 
-use Test::More tests => 84;
+use Test::More tests => 88;
 use LWP::UserAgent;
 use Archive::Zip;
 
@@ -136,6 +136,13 @@ is($response->code, 200, "Returns OK with spaces in URLs");
 
 $zip = test_zip_archive($response->content, "with spaces in URLs");
 is($zip->numberOfMembers(), 2, "Correct number in spaced-out ZIP");
+
+$response = $ua->get("$http_root/zip-spaces-plus.txt");
+is($response->code, 200, "Returns OK with spaces and plus in URLs");
+
+$zip = test_zip_archive($response->content, "with spaces and plus in the URLs");
+is($zip->numberOfMembers(), 2, "Correct number in spaces and plus ZIP");
+
 
 open LARGEFILE, ">", "nginx/html/largefile.txt";
 for (0..99999) {
