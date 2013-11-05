@@ -89,4 +89,8 @@ use the headers_more module: http://wiki.nginx.org/NginxHttpHeadersMoreModule
 Tip 4: Using mod_zip with SSL will not work if the backend response has
 a Set-Cookie header. Wipe it with the headers_more module (see tip 3).
 
+Tip 5: Using mod_zip with SSL may stuck sometimes (or even always reproduce on
+same files list), you can create extra proxy server in nginx configs that
+will remove X-Archive-Files header (see tip 3).
+
 Questions/patches may be directed to Evan Miller, emmiller@gmail.com.
