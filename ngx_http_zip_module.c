@@ -194,14 +194,14 @@ ngx_http_zip_main_request_header_filter(ngx_http_request_t *r)
     /* Look for X-Archive-Files */
     if ( !r->upstream && ( ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_variable_name,
                                          &r->headers_out.headers.part,
-                                         sizeof("upstream_http_") - 1) != NGX_OK)
-            || vv->not_found || ngx_strncmp(vv->data, "zip", sizeof("zip") - 1) != 0){
+                                         sizeof("upstream_http_") - 1) != NGX_OK
+            || vv->not_found || ngx_strncmp(vv->data, "zip", sizeof("zip") - 1) != 0) ){
 
         return ngx_http_next_header_filter(r);
 
-    }else if (r->upstream && ngx_http_upstream_header_variable(r, vv, 
+    }else if (r->upstream && ( ngx_http_upstream_header_variable(r, vv, 
                             (uintptr_t)(&ngx_http_zip_header_variable_name)) != NGX_OK 
-            || vv->not_found || ngx_strncmp(vv->data, "zip", sizeof("zip") - 1) != 0){
+            || vv->not_found || ngx_strncmp(vv->data, "zip", sizeof("zip") - 1) != 0) ){
 
         return ngx_http_next_header_filter(r);
     }
