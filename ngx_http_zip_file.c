@@ -2,12 +2,11 @@
 #include "ngx_http_zip_module.h"
 #include "ngx_http_zip_file.h"
 #include "ngx_http_zip_file_format.h"
+#include "ngx_http_zip_endian.h"
 
 #ifdef NGX_ZIP_HAVE_ICONV
 #include <iconv.h>
 #endif
-
-#include <endian.h>
 
 static ngx_str_t ngx_http_zip_header_charset_name = ngx_string("upstream_http_x_archive_charset");
 static ngx_str_t ngx_http_zip_header_name_separator = ngx_string("upstream_http_x_archive_name_sep");
