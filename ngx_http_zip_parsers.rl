@@ -90,7 +90,7 @@ ngx_http_zip_clean_range(ngx_http_zip_range_t *range,
 
 %%{
     machine request;
-    write data;
+    write data noerror nofinal;
 }%%
 
 ngx_int_t 
@@ -168,6 +168,9 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
        write exec;
     }%%
 
+    /* suppress warning */
+    (void)request_en_main;
+
     if (cs < request_first_final) {
         return NGX_ERROR;
     }
@@ -179,7 +182,7 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
 
 %%{
     machine range;
-    write data;
+    write data noerror nofinal;
 }%%
 
 ngx_int_t
@@ -224,6 +227,9 @@ ngx_http_zip_parse_range(ngx_http_request_t *r, ngx_str_t *range_str, ngx_http_z
       write init;
       write exec;
     }%%
+
+    /* suppress warning */
+    (void)range_en_main;
 
     if (cs < range_first_final) {
         return NGX_ERROR;
