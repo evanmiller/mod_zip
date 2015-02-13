@@ -90,7 +90,7 @@ ngx_http_zip_clean_range(ngx_http_zip_range_t *range,
 
 %%{
     machine request;
-    write data noerror nofinal;
+    write data noerror;
 }%%
 
 ngx_int_t 
@@ -182,7 +182,7 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
 
 %%{
     machine range;
-    write data noerror nofinal;
+    write data noerror;
 }%%
 
 ngx_int_t
