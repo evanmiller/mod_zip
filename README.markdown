@@ -1,5 +1,6 @@
 mod_zip
 =======
+[![Build Status](https://travis-ci.org/evanmiller/mod_zip.svg?branch=master)](https://travis-ci.org/evanmiller/mod_zip)
 
 mod_zip assembles ZIP archives dynamically. It can stream component files from
 upstream servers with nginx's native proxying code, so that the process never
