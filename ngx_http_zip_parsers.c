@@ -358,7 +358,7 @@ _again:
     /* suppress warning */
     (void)request_en_main;
 
-    if (cs < request_first_final) {
+    if (cs < 11) {
         return NGX_ERROR;
     }
 
@@ -557,7 +557,7 @@ _again:
     /* suppress warning */
     (void)range_en_main;
 
-    if (cs < range_first_final) {
+    if (cs < 10) {
         return NGX_ERROR;
     }
 

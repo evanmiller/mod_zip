@@ -171,7 +171,7 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
     /* suppress warning */
     (void)request_en_main;
 
-    if (cs < request_first_final) {
+    if (cs < %%{ write first_final; }%%) {
         return NGX_ERROR;
     }
 
@@ -231,7 +231,7 @@ ngx_http_zip_parse_range(ngx_http_request_t *r, ngx_str_t *range_str, ngx_http_z
     /* suppress warning */
     (void)range_en_main;
 
-    if (cs < range_first_final) {
+    if (cs < %%{ write first_final; }%%) {
         return NGX_ERROR;
     }
 
