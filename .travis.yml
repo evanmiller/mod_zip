@@ -1,0 +1,23 @@
+language: c
+compiler:
+  - clang
+  - gcc
+
+before_install:
+  - sudo apt-get install libwww-perl libarchive-zip-perl
+
+script:
+  - wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
+  - tar xvfz nginx-${NGINX_VERSION}.tar.gz
+  - cd nginx-${NGINX_VERSION}
+  - ./configure --prefix=${TRAVIS_BUILD_DIR}/t/nginx --add-module=${TRAVIS_BUILD_DIR}
+  - make
+  - make install
+  - cd ${TRAVIS_BUILD_DIR}/t
+  - ./restart.sh
+  - ./ziptest.pl
+
+env:
+  - NGINX_VERSION="1.6.2"
+  - NGINX_VERSION="1.7.10"
+
