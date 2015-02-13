@@ -154,6 +154,7 @@ static const char _request_eof_actions[] = {
 };
 
 static const int request_start = 1;
+static const int request_first_final = 11;
 
 static const int request_en_main = 1;
 
@@ -171,12 +172,12 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
     ngx_http_zip_file_t *parsing_file = NULL;
 
     
-#line 175 "ngx_http_zip_parsers.c"
+#line 176 "ngx_http_zip_parsers.c"
 	{
 	cs = request_start;
 	}
 
-#line 180 "ngx_http_zip_parsers.c"
+#line 181 "ngx_http_zip_parsers.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -322,7 +323,7 @@ _match:
             parsing_file->filename.len = p - parsing_file->filename.data;
         }
 	break;
-#line 326 "ngx_http_zip_parsers.c"
+#line 327 "ngx_http_zip_parsers.c"
 		}
 	}
 
@@ -344,7 +345,7 @@ _again:
             parsing_file->filename.len = p - parsing_file->filename.data;
         }
 	break;
-#line 348 "ngx_http_zip_parsers.c"
+#line 349 "ngx_http_zip_parsers.c"
 		}
 	}
 	}
@@ -368,7 +369,7 @@ _again:
 }
 
 
-#line 372 "ngx_http_zip_parsers.c"
+#line 373 "ngx_http_zip_parsers.c"
 static const char _range_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 2, 
 	0, 1, 2, 3, 1
@@ -415,6 +416,7 @@ static const char _range_trans_actions[] = {
 };
 
 static const int range_start = 1;
+static const int range_first_final = 10;
 
 static const int range_en_main = 1;
 
@@ -432,12 +434,12 @@ ngx_http_zip_parse_range(ngx_http_request_t *r, ngx_str_t *range_str, ngx_http_z
     u_char *pe = range_str->data + range_str->len;
 
     
-#line 436 "ngx_http_zip_parsers.c"
+#line 438 "ngx_http_zip_parsers.c"
 	{
 	cs = range_start;
 	}
 
-#line 441 "ngx_http_zip_parsers.c"
+#line 443 "ngx_http_zip_parsers.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -538,7 +540,7 @@ _match:
 #line 216 "ngx_http_zip_parsers.rl"
 	{ suffix = 1; }
 	break;
-#line 542 "ngx_http_zip_parsers.c"
+#line 544 "ngx_http_zip_parsers.c"
 		}
 	}
 
