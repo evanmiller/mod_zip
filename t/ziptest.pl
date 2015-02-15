@@ -2,7 +2,7 @@
 
 # TODO tests for Zip64
 
-use Test::More tests => 88;
+use Test::More tests => 93;
 use LWP::UserAgent;
 use Archive::Zip;
 
@@ -114,6 +114,12 @@ is($zip->memberNamed("file1.txt")->hasDataDescriptor(), 8, "Has data descriptor 
 is($zip->memberNamed("file1.txt")->crc32String(), "1a6349c5", "Generated file1.txt CRC is correct");
 is($zip->memberNamed("file2.txt")->crc32String(), "5d70c4d3", "Generated file2.txt CRC is correct");
 
+$response = $ua->get("$http_root/zip-uppercase-crc.txt");
+is($response->code, 200, "Returns OK with uppercase CRC");
+$zip = test_zip_archive($response->content, "with uppercase CRC");
+is($zip->memberNamed("file1.txt")->crc32String(), "1a6349c5", "file1.txt CRC is correct");
+is($zip->memberNamed("file2.txt")->crc32String(), "5d70c4d3", "file2.txt CRC is correct");
+
 $response = $ua->get("$http_root/zip-404.txt");
 is($response->code, 500, "Server error with bad file");
 
@@ -128,8 +134,8 @@ is($response->code, 200, "Returns OK with local files");
 
 $zip = test_zip_archive($response->content, "with local files");
 is($zip->numberOfMembers(), 2, "Correct number in local-file ZIP");
-is($zip->memberNamed("file1.txt")->crc32String(), "1a6349c5", "Generated file1.txt CRC is correct (local)");
-is($zip->memberNamed("file2.txt")->crc32String(), "5d70c4d3", "Generated file2.txt CRC is correct (local)");
+is($zip->memberNamed("file1.txt")->crc32String(), "1a6349c5", "file1.txt CRC is correct (local)");
+is($zip->memberNamed("file2.txt")->crc32String(), "5d70c4d3", "file2.txt CRC is correct (local)");
 
 $response = $ua->get("$http_root/zip-spaces.txt");
 is($response->code, 200, "Returns OK with spaces in URLs");
