@@ -11,7 +11,7 @@
 extern uint32_t   ngx_crc32_table256[];
 
 typedef struct {
-    ngx_uint_t  crc32;
+    uint32_t    crc32;
     ngx_str_t   uri;
     ngx_str_t   args;
     size_t      index; //! zip64 allows for 64bit number of files

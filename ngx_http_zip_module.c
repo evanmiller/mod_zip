@@ -465,10 +465,8 @@ ngx_http_zip_subrequest_update_crc32(ngx_chain_t *in,
     for (cl = in; cl != NULL; cl = cl->next) {
         p = cl->buf->pos;
         len = cl->buf->last - p;
-        while(len--) {
-            file->crc32 = ngx_crc32_table256[(file->crc32 ^ *p++) & 0xff] 
-                ^ (file->crc32 >> 8);
-        }
+
+        ngx_crc32_update(&file->crc32, p, len);
     }
 
     return NGX_OK;
@@ -615,7 +613,7 @@ ngx_http_zip_send_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx, ngx_http
 
     if (piece->type == zip_trailer_piece) {
         if (piece->file->missing_crc32) // should always be true, but if we somehow needed trailer piece - go on
-            piece->file->crc32 ^= 0xffffffff;
+            ngx_crc32_final(piece->file->crc32);
 
         if ((link = ngx_http_zip_data_descriptor_chain_link(r, piece, range)) == NULL) {
             ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: data descriptor failed");

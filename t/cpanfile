@@ -1,0 +1,2 @@
+requires 'Archive::Zip', '>=1.45';
+requires 'LWP::UserAgent';

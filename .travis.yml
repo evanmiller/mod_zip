@@ -4,18 +4,33 @@ compiler:
   - gcc
 
 before_install:
-  - sudo apt-get install libwww-perl libarchive-zip-perl
+  # Ubuntu 12.04 doesn't have carton natively, so we install the copy from trusty
+  # This can be removed when Travis CI updates to 14.04
+  # https://github.com/travis-ci/travis-ci/issues/2046
+  - lsb_release -r
+  - sudo apt-add-repository 'deb http://archive.ubuntu.com/ubuntu trusty main universe multiverse'
+  - sudo apt-get update
 
-script:
+  # Ubuntu's versions of these packages are out of date so we need
+  # to install them using carton instead.
+  - sudo apt-get --no-install-recommends install carton
+
+  # Fetch nginx source
   - wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
   - tar xvfz nginx-${NGINX_VERSION}.tar.gz
   - cd nginx-${NGINX_VERSION}
+
+script:
+  # Build nginx
   - ./configure --prefix=${TRAVIS_BUILD_DIR}/t/nginx --add-module=${TRAVIS_BUILD_DIR}
   - make
   - make install
+
+  # Run tests
   - cd ${TRAVIS_BUILD_DIR}/t
   - ./restart.sh
-  - ./ziptest.pl
+  - carton install
+  - carton exec ./ziptest.pl
 
 env:
   - NGINX_VERSION="1.6.2"

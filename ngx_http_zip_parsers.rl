@@ -132,17 +132,10 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
             if (fc == '-') {
                 ctx->missing_crc32 = 1;
                 parsing_file->missing_crc32 = 1;
-                parsing_file->crc32 = 0xffffffff;
+                ngx_crc32_init(parsing_file->crc32);
             } else {
                 parsing_file->crc32 *= 16;
-                if (fc >= 'a' && fc <= 'f') {
-                    parsing_file->crc32 += fc - 'a' + 10;
-                }
-                else if (fc >= 'A' && fc <= 'F') {
-                    parsing_file->crc32 += fc - 'A' + 10;
-                } else { /* 0-9 */
-                    parsing_file->crc32 += fc - '0';
-                }
+                parsing_file->crc32 += ngx_hextoi(fpc, 1);
             }
         }
         action start_filename {
