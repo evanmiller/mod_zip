@@ -34,5 +34,5 @@ script:
 
 env:
   - NGINX_VERSION="1.6.2"
-  - NGINX_VERSION="1.7.10"
+  - NGINX_VERSION="1.7.12"
 

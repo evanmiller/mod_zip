@@ -5,6 +5,10 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_parsers.c"
 NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_file.c"
 NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_headers.c"
 
+
+# This module depends upon the postpone filter being activated
+HTTP_MODULES="$HTTP_MODULES ngx_http_postpone_filter"
+
 ngx_feature="iconv_open()"
 ngx_feature_name="NGX_ZIP_HAVE_ICONV"
 ngx_feature_run=no
