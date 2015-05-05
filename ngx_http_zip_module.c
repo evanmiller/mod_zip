@@ -249,8 +249,8 @@ ngx_http_zip_set_headers(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         return NGX_ERROR;
     }
 
-    r->headers_out.content_type.len = sizeof(NGX_ZIP_MIME_TYPE) - 1;
-    r->headers_out.content_type.data = (u_char *)NGX_ZIP_MIME_TYPE;
+    r->headers_out.content_type_len = sizeof(NGX_ZIP_MIME_TYPE) - 1;
+    ngx_str_set(&r->headers_out.content_type, NGX_ZIP_MIME_TYPE);
     ngx_http_clear_content_length(r);
 
     if (ctx->missing_crc32) {
