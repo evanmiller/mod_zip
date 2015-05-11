@@ -196,10 +196,12 @@ ngx_http_zip_main_request_header_filter(ngx_http_request_t *r)
     if (r->upstream) {
         variable_header_status = ngx_http_upstream_header_variable(r, vv, 
                 (uintptr_t)(&ngx_http_zip_header_variable_name));
-    } else {
+    } else if (r->headers_out.status == NGX_HTTP_OK) {
         variable_header_status = ngx_http_variable_unknown_header(vv, 
                 &ngx_http_zip_header_variable_name,
                 &r->headers_out.headers.part, sizeof("upstream_http_") - 1); 
+    } else {
+        vv->not_found = 1;
     }
 
     if (variable_header_status != NGX_OK || vv->not_found || 

@@ -31,8 +31,7 @@ ngx_http_zip_add_cache_control(ngx_http_request_t *r)
         }
 
         cc->hash = 1;
-        cc->key.len = sizeof("Cache-Control") - 1;
-        cc->key.data = (u_char *) "Cache-Control";
+        ngx_str_set(&cc->key, "Cache-Control");
 
         *ccp = cc;
 
@@ -44,8 +43,7 @@ ngx_http_zip_add_cache_control(ngx_http_request_t *r)
         cc = ccp[0];
     }
 
-    cc->value.len = sizeof("max-age=0") - 1;
-    cc->value.data = (u_char *) "max-age=0";
+    ngx_str_set(&cc->value, "max-age=0");
 
     return NGX_OK;
 }
@@ -63,8 +61,7 @@ ngx_http_zip_add_content_range_header(ngx_http_request_t *r)
     r->headers_out.content_range = content_range;
 
     content_range->hash = 1;
-    content_range->key.len = sizeof("Content-Range") - 1;
-    content_range->key.data = (u_char *) "Content-Range";
+    ngx_str_set(&content_range->key, "Content-Range");
 
     if (r->headers_out.content_length) {
         r->headers_out.content_length->hash = 0;
@@ -201,8 +198,7 @@ ngx_http_zip_strip_range_header(ngx_http_request_t *r)
     header = r->headers_in.range;
 
     if (header) {
-        header->key.data    = (u_char *)"X-Range";
-        header->key.len     = sizeof("X-Range") - 1;
+        ngx_str_set(&header->key, "X-Range");
         header->lowcase_key = (u_char *)"x-range";
     }
 
