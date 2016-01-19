@@ -429,6 +429,7 @@ ngx_http_zip_file_header_chain_link(ngx_http_request_t *r, ngx_http_zip_ctx_t *c
 
     b->memory = 1;
     b->last = b->pos + len;
+    b->flush = piece > ctx->pieces;
 
     /* A note about the ZIP format: in order to appease all ZIP software I
      * could find, the local file header contains the file sizes but not the
