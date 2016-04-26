@@ -22,31 +22,21 @@ ngx_http_zip_file_init(ngx_http_zip_file_t *parsing_file)
     parsing_file->need_zip64_offset = 0;
 }
 
-static char
-hex_char_value(unsigned char ch) {
-    if ('0' <= ch && ch <= '9')
-	return ch - '0';
-    if ('A' <= ch && ch <= 'F')
-	return ch - 'A' + 10;
-    if ('a' <= ch && ch <= 'f')
-	return ch - 'A' + 10;
-    return 0;
-}
-
 static size_t
 destructive_url_decode_len(unsigned char* start, unsigned char* end)
 {
     unsigned char *read_pos = start, *write_pos = start;
 
     for (; read_pos < end; read_pos++) {
-	unsigned char ch = *read_pos;
-	if (ch == '+')
-	    ch = ' ';
-	if (ch == '%' && (read_pos+2 < end)) {
-	    ch = 16 * hex_char_value(*(read_pos+1)) + hex_char_value(*(read_pos+2));
-	    read_pos += 2;
-	    }
-	*(write_pos++) = ch;
+        unsigned char ch = *read_pos;
+        if (ch == '+') {
+            ch = ' ';
+        }
+        if (ch == '%' && (read_pos + 2 < end)) {
+            ch = ngx_hextoi(read_pos + 1, 2);
+            read_pos += 2;
+        }
+        *(write_pos++) = ch;
     }
 
     return write_pos - start;
@@ -110,7 +100,7 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
         }
 
         action end_uri {
-	    parsing_file->uri.len = destructive_url_decode_len(parsing_file->uri.data, fpc);
+            parsing_file->uri.len = destructive_url_decode_len(parsing_file->uri.data, fpc);
         }
         action start_args {
             parsing_file->args.data = fpc;
