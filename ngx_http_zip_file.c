@@ -8,7 +8,9 @@
 #include <iconv.h>
 #endif
 
+#ifdef NGX_ZIP_HAVE_ICONV
 static ngx_str_t ngx_http_zip_header_charset_name = ngx_string("upstream_http_x_archive_charset");
+#endif
 static ngx_str_t ngx_http_zip_header_name_separator = ngx_string("upstream_http_x_archive_name_sep");
 
 #define NGX_MAX_UINT16_VALUE 0xffff
@@ -327,8 +329,9 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
 
                 file->filename_utf8_crc32 = ngx_crc32_long(file->filename_utf8.data, file->filename_utf8.len);
             }
+            else
 #endif
-              else if(vv->len) {
+              if(vv->len) {
                 const char * sep = ngx_http_zip_strnrstr((const char*)file->filename.data, file->filename.len,
                                                          (const char*)vv->data, vv->len);
                 if(sep) {
