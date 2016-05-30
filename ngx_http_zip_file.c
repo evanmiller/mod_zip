@@ -8,7 +8,9 @@
 #include <iconv.h>
 #endif
 
+#ifdef NGX_ZIP_HAVE_ICONV
 static ngx_str_t ngx_http_zip_header_charset_name = ngx_string("upstream_http_x_archive_charset");
+#endif
 static ngx_str_t ngx_http_zip_header_name_separator = ngx_string("upstream_http_x_archive_name_sep");
 
 #define NGX_MAX_UINT16_VALUE 0xffff
