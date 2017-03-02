@@ -26,3 +26,8 @@ if [ $ngx_found = yes ]; then
     CORE_LIBS="$CORE_LIBS $ngx_feature_libs"
     ngx_found=no
 fi
+
+ngx_module_type=HTTP
+ngx_module_name=ngx_http_zip_module
+. auto/module
+ngx_addon_name=$ngx_module_name
