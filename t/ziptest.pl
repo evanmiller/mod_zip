@@ -30,8 +30,9 @@ sub set_debug_log($) {
     if ($?) {
         print "Starting nginx...\n";
         `nginx/sbin/nginx`;
+    } else {
+        `/bin/kill -HUP $pid`;
     }
-    `/bin/kill -HUP $pid`;
     sleep 1;
 }
 
