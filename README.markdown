@@ -15,7 +15,7 @@ To install, compile nginx with the following option:
 
     --add-module=/path/to/this/directory
 
-* nginx 0.7.25 or later is required
+* nginx 1.10.0 or later is required
 * (optional) to enable the "X-Archive-Charset" header, libiconv is required
 * http_postpone must be enabled by including at least one of the http_addition, http_slice or http_ssi modules
 

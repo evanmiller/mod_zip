@@ -33,10 +33,7 @@ script:
   - carton exec ./ziptest.pl
 
 env:
-  - NGINX_VERSION="1.6.3"
-  - NGINX_VERSION="1.7.12"
-  - NGINX_VERSION="1.8.0"
-  - NGINX_VERSION="1.9.0"
-  - NGINX_VERSION="1.10.0"
-  - NGINX_VERSION="1.11.0"
-
+  - NGINX_VERSION="1.10.3"
+  - NGINX_VERSION="1.11.13"
+  - NGINX_VERSION="1.12.0"
+  - NGINX_VERSION="1.13.2"
