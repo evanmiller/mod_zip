@@ -250,13 +250,15 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
     // Note: Currently it is impossible after '[PATCH] Support for UTF-8 file names.'(4f61592b)
     // because UFT-8 flag (zip_utf8_flag) is set default for templates.
 
-    if(ngx_http_upstream_header_variable(r, vv, (uintptr_t)(&ngx_http_zip_header_name_separator)) == NGX_OK && !vv->not_found) {
+    if (ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_name_separator,
+                &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1) == NGX_OK && !vv->not_found) {
         ctx->native_charset = 1;
         if(vv->len)
             ctx->unicode_path = 1;
     } else {
 #ifdef NGX_ZIP_HAVE_ICONV
-        if (ngx_http_upstream_header_variable(r, vv, (uintptr_t)(&ngx_http_zip_header_charset_name)) == NGX_OK
+        if (ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_charset_name,
+                    &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1) == NGX_OK
                 && !vv->not_found && ngx_strncmp(vv->data, "utf8", sizeof("utf8") - 1) != 0) {
 
             if(ngx_strncmp(vv->data, "native", sizeof("native") - 1))
