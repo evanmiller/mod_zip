@@ -487,6 +487,8 @@ ngx_http_zip_subrequest_done(ngx_http_request_t *r, void *data, ngx_int_t rc)
 {
     ngx_http_zip_piece_t *piece = (ngx_http_zip_piece_t *)data;
 
+    (void)piece; /* fix warning */
+
     ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
             "mod_zip: subrequest for \"%V?%V\" done, result %d",
             &piece->file->uri, &piece->file->args, rc);
