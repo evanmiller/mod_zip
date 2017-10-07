@@ -39,9 +39,16 @@ static ngx_int_t ngx_http_zip_subrequest_update_crc32(ngx_chain_t *in,
 
 static ngx_int_t ngx_http_zip_send_pieces(ngx_http_request_t *r,
         ngx_http_zip_ctx_t *ctx);
+static ngx_int_t ngx_http_zip_send_header_piece(ngx_http_request_t *r,
+        ngx_http_zip_ctx_t *ctx, ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range);
+static ngx_int_t ngx_http_zip_send_file_piece(ngx_http_request_t *r,
+        ngx_http_zip_ctx_t *ctx, ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range);
+static ngx_int_t ngx_http_zip_send_trailer_piece(ngx_http_request_t *r,
+        ngx_http_zip_ctx_t *ctx, ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range);
+static ngx_int_t ngx_http_zip_send_central_directory_piece(ngx_http_request_t *r,
+        ngx_http_zip_ctx_t *ctx, ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range);
 static ngx_int_t ngx_http_zip_send_piece(ngx_http_request_t *r, 
-        ngx_http_zip_ctx_t *ctx, ngx_http_zip_piece_t *piece, 
-        ngx_http_zip_range_t *range);
+        ngx_http_zip_ctx_t *ctx, ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range);
 
 static ngx_int_t ngx_http_zip_send_boundary(ngx_http_request_t *r, 
         ngx_http_zip_ctx_t *ctx, ngx_http_zip_range_t *range);
@@ -555,84 +562,112 @@ ngx_http_zip_main_request_body_filter(ngx_http_request_t *r,
     return ngx_http_zip_send_pieces(r, ctx);
 }
 
-
-
 static ngx_int_t
-ngx_http_zip_send_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx, ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range)
+ngx_http_zip_send_header_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
+        ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range)
 {
     ngx_chain_t *link;
-    ngx_http_request_t *sr;
+    if ((link = ngx_http_zip_file_header_chain_link(r, ctx, piece, range)) == NULL)
+        return NGX_ERROR;
+    return ngx_http_next_body_filter(r, link);
+}
+
+static ngx_int_t
+ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
+        ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range)
+{
     ngx_http_zip_sr_ctx_t *sr_ctx;
+    ngx_http_request_t *sr;
     ngx_int_t rc;
 
-    if (piece->type == zip_header_piece) {
-        if ((link = ngx_http_zip_file_header_chain_link(r, ctx, piece, range)) == NULL)
-            return NGX_ERROR;
-        return ngx_http_next_body_filter(r, link);
-    }
-
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+            "mod_zip: subrequest for \"%V?%V\"", &piece->file->uri, &piece->file->args);
     // need to check if the context has something going on....
-    if (piece->type == zip_file_piece) {
-        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: subrequest for \"%V?%V\"", &piece->file->uri, &piece->file->args);
-        if (ctx->wait) {
+    if (ctx->wait) {
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                "mod_zip: have a wait context for \"%V?%V\"",
+                &ctx->wait->uri, &ctx->wait->args);
+        if (!ctx->wait->done) {
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                    "mod_zip: have a wait context for \"%V?%V\"",
+                    "mod_zip: wait NOT DONE  \"%V?%V\"",
                     &ctx->wait->uri, &ctx->wait->args);
-            if (ctx->wait->done) {
-                ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                        "mod_zip: wait \"%V?%V\" done",
-                        &ctx->wait->uri, &ctx->wait->args);
-                ctx->wait = NULL;
-            } else {
-                ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                        "mod_zip: wait NOT DONE  \"%V?%V\"",
-                        &ctx->wait->uri, &ctx->wait->args);
-                return NGX_AGAIN;
-            }
+            return NGX_AGAIN;
         }
-        rc = ngx_http_subrequest(r, &piece->file->uri, &piece->file->args, &sr, NULL, NGX_HTTP_SUBREQUEST_WAITED);
-        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: subrequest for \"%V?%V\" result %d, allocating some mem on main request's pool", &piece->file->uri, &piece->file->args, rc);
-        if (rc == NGX_ERROR) {
-            return NGX_ERROR;
-        }
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                "mod_zip: wait \"%V?%V\" done",
+                &ctx->wait->uri, &ctx->wait->args);
+        ctx->wait = NULL;
+    }
+    rc = ngx_http_subrequest(r, &piece->file->uri, &piece->file->args, &sr, NULL, NGX_HTTP_SUBREQUEST_WAITED);
+    ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+            "mod_zip: subrequest for \"%V?%V\" result %d", &piece->file->uri, &piece->file->args, rc);
 
-        if ((sr_ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_ctx_t))) == NULL)
-            return NGX_ERROR;
-        
-        sr_ctx->requesting_file = piece->file;
-        sr_ctx->subrequest_pos = piece->range.start;
-        sr_ctx->range = range;
-        ngx_http_set_ctx(sr, sr_ctx, ngx_http_zip_module);
-        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: subrequest for \"%V?%V\" result %d", &piece->file->uri, &piece->file->args, rc);
-        if (ctx->wait == NULL) {
-            ctx->wait = sr;
-            return NGX_AGAIN;   // must be NGX_AGAIN
-        } else {
-            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                    "mod_zip : only one subrequest may be waited at the same time; ");
-        }
+    if (rc == NGX_ERROR) {
         return NGX_ERROR;
     }
 
-    if (piece->type == zip_trailer_piece) {
-        if (piece->file->missing_crc32) // should always be true, but if we somehow needed trailer piece - go on
-            ngx_crc32_final(piece->file->crc32);
+    if ((sr_ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_ctx_t))) == NULL)
+        return NGX_ERROR;
 
-        if ((link = ngx_http_zip_data_descriptor_chain_link(r, piece, range)) == NULL) {
-            ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: data descriptor failed");
-            return NGX_ERROR;
-        }
-        return ngx_http_next_body_filter(r, link);
+    sr_ctx->requesting_file = piece->file;
+    sr_ctx->subrequest_pos = piece->range.start;
+    sr_ctx->range = range;
+    ngx_http_set_ctx(sr, sr_ctx, ngx_http_zip_module);
+    if (ctx->wait) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                "mod_zip : only one subrequest may be waited at the same time; ");
+        return NGX_ERROR;
+    }
+    ctx->wait = sr;
+    return NGX_AGAIN;   // must be NGX_AGAIN
+}
+
+static ngx_int_t
+ngx_http_zip_send_trailer_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
+        ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range)
+{
+    ngx_chain_t *link;
+
+    if (piece->file->missing_crc32) // should always be true, but if we somehow needed trailer piece - go on
+        ngx_crc32_final(piece->file->crc32);
+
+    if ((link = ngx_http_zip_data_descriptor_chain_link(r, piece, range)) == NULL) {
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: data descriptor failed");
+        return NGX_ERROR;
+    }
+    return ngx_http_next_body_filter(r, link);
+}
+
+static ngx_int_t
+ngx_http_zip_send_central_directory_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
+        ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range)
+{
+    ngx_chain_t *link;
+
+    if ((link = ngx_http_zip_central_directory_chain_link(r, ctx, piece, range)) == NULL) {
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: CD piece failed");
+        return NGX_ERROR;
+    }
+    return ngx_http_next_body_filter(r, link);
+}
+
+static ngx_int_t
+ngx_http_zip_send_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
+        ngx_http_zip_piece_t *piece, ngx_http_zip_range_t *range)
+{
+    ngx_int_t rc = NGX_ERROR;
+
+    if (piece->type == zip_header_piece) {
+        rc = ngx_http_zip_send_header_piece(r, ctx, piece, range);
+    } else if (piece->type == zip_file_piece) {
+        rc = ngx_http_zip_send_file_piece(r, ctx, piece, range);
+    } else if (piece->type == zip_trailer_piece) {
+        rc = ngx_http_zip_send_trailer_piece(r, ctx, piece, range);
+    } else if (piece->type == zip_central_directory_piece) {
+        rc = ngx_http_zip_send_central_directory_piece(r, ctx, piece, range);
     }
 
-    if (piece->type == zip_central_directory_piece) {
-        if ((link = ngx_http_zip_central_directory_chain_link(r, ctx, piece, range)) == NULL) {
-            ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: CD piece failed");
-            return NGX_ERROR;
-        }
-        return ngx_http_next_body_filter(r, link);
-    }
-    return NGX_ERROR;
+    return rc;
 }
 
 static ngx_int_t
