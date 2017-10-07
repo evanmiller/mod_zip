@@ -1,9 +1,19 @@
 ngx_addon_name=ngx_http_zip_module
-HTTP_AUX_FILTER_MODULES="$HTTP_AUX_FILTER_MODULES ngx_http_zip_module"
-NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_module.c"
-NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_parsers.c"
-NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_file.c"
-NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_headers.c"
+
+if [ $ngx_module_link = DYNAMIC ] ; then
+    ngx_module_name=ngx_http_zip_module
+    ngx_module_srcs="$ngx_addon_dir/ngx_http_zip_module.c $ngx_addon_dir/ngx_http_zip_parsers.c $ngx_addon_dir/ngx_http_zip_file.c $ngx_addon_dir/ngx_http_zip_headers.c"
+
+    . auto/module
+elif [ $ngx_module_link = ADDON ] ; then
+    HTTP_AUX_FILTER_MODULES="$HTTP_AUX_FILTER_MODULES ngx_http_zip_module"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_module.c"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_parsers.c"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_file.c"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_zip_headers.c"
+
+    . auto/module    
+fi
 
 ngx_feature="iconv_open()"
 ngx_feature_name="NGX_ZIP_HAVE_ICONV"
