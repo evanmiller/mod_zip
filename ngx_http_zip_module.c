@@ -36,6 +36,7 @@ static ngx_chain_t* ngx_http_zip_subrequest_range(ngx_http_request_t *r, ngx_cha
         ngx_http_zip_sr_ctx_t *sr_ctx);
 static ngx_int_t ngx_http_zip_subrequest_update_crc32(ngx_chain_t *in, 
         ngx_http_zip_file_t *file);
+static ngx_int_t ngx_http_zip_subrequest_done(ngx_http_request_t *r, void *data, ngx_int_t rc);
 
 static ngx_int_t ngx_http_zip_send_pieces(ngx_http_request_t *r,
         ngx_http_zip_ctx_t *ctx);
@@ -357,8 +358,7 @@ ngx_http_zip_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 }
 
 static ngx_int_t
-ngx_http_zip_subrequest_body_filter(ngx_http_request_t *r,
-        ngx_chain_t *in)
+ngx_http_zip_subrequest_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
     ngx_http_zip_ctx_t   *ctx;
     ngx_http_zip_sr_ctx_t *sr_ctx;
@@ -483,6 +483,18 @@ ngx_http_zip_subrequest_update_crc32(ngx_chain_t *in,
 }
 
 static ngx_int_t
+ngx_http_zip_subrequest_done(ngx_http_request_t *r, void *data, ngx_int_t rc)
+{
+    ngx_http_zip_piece_t *piece = (ngx_http_zip_piece_t *)data;
+
+    ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+            "mod_zip: subrequest for \"%V?%V\" done, result %d",
+            &piece->file->uri, &piece->file->args, rc);
+
+    return rc;
+}
+
+static ngx_int_t
 ngx_http_zip_main_request_body_filter(ngx_http_request_t *r,
         ngx_chain_t *in)
 {
@@ -578,6 +590,7 @@ ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
 {
     ngx_http_zip_sr_ctx_t *sr_ctx;
     ngx_http_request_t *sr;
+    ngx_http_post_subrequest_t *ps;
     ngx_int_t rc;
 
     ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
@@ -598,9 +611,18 @@ ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
                 &ctx->wait->uri, &ctx->wait->args);
         ctx->wait = NULL;
     }
-    rc = ngx_http_subrequest(r, &piece->file->uri, &piece->file->args, &sr, NULL, NGX_HTTP_SUBREQUEST_WAITED);
+
+    ps = ngx_palloc(r->pool, sizeof(ngx_http_post_subrequest_t));
+    if (ps == NULL) {
+        return NGX_ERROR;
+    }
+
+    ps->handler = ngx_http_zip_subrequest_done;
+    ps->data = piece;
+
+    rc = ngx_http_subrequest(r, &piece->file->uri, &piece->file->args, &sr, ps, NGX_HTTP_SUBREQUEST_WAITED);
     ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-            "mod_zip: subrequest for \"%V?%V\" result %d", &piece->file->uri, &piece->file->args, rc);
+            "mod_zip: subrequest for \"%V?%V\" initiated, result %d", &piece->file->uri, &piece->file->args, rc);
 
     if (rc == NGX_ERROR) {
         return NGX_ERROR;
