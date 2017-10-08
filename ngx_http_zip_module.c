@@ -131,8 +131,7 @@ ngx_http_zip_discard_chain(ngx_http_request_t *r, ngx_chain_t *in)
 static ngx_int_t
 ngx_http_zip_ranges_intersect(ngx_http_zip_range_t *range1, ngx_http_zip_range_t *range2)
 {
-    return (range1 == NULL) || (range2 == NULL) || 
-        !(range1->start >= range2->end || range2->start >= range1->end);
+    return !(range1->start >= range2->end || range2->start >= range1->end);
 }
 
 static ngx_int_t ngx_http_zip_copy_unparsed_request(ngx_http_request_t *r,
@@ -363,11 +362,12 @@ ngx_http_zip_subrequest_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
     sr_ctx = ngx_http_get_module_ctx(r, ngx_http_zip_module);
 
-    if (sr_ctx && in) {
-        if (sr_ctx->requesting_file->missing_crc32) {
-            ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: updating CRC-32");
-            ngx_http_zip_subrequest_update_crc32(in, sr_ctx->requesting_file);
-        }
+    if (in && sr_ctx && sr_ctx->requesting_file->missing_crc32) {
+        uint32_t old_crc32 = sr_ctx->requesting_file->crc32, new_crc32 = 0;
+        ngx_http_zip_subrequest_update_crc32(in, sr_ctx->requesting_file);
+        new_crc32 = sr_ctx->requesting_file->crc32;
+
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: updated CRC-32 (%08Xd -> %08Xd)", old_crc32, new_crc32);
     }
     
     return ngx_http_next_body_filter(r, in);
@@ -579,8 +579,13 @@ ngx_http_zip_send_trailer_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
 {
     ngx_chain_t *link;
 
-    if (piece->file->missing_crc32) // should always be true, but if we somehow needed trailer piece - go on
+    if (piece->file->missing_crc32) { // should always be true, but if we somehow needed trailer piece - go on
+        uint32_t old_crc32 = piece->file->crc32, new_crc32 = 0;
         ngx_crc32_final(piece->file->crc32);
+        new_crc32 = piece->file->crc32;
+
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: finalized CRC-32 (%08Xd -> %08Xd)", old_crc32, new_crc32);
+    }
 
     if ((link = ngx_http_zip_data_descriptor_chain_link(r, piece, req_range)) == NULL) {
         ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: data descriptor failed");
