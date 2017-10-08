@@ -362,7 +362,6 @@ static ngx_int_t
 ngx_http_zip_subrequest_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
     ngx_http_zip_sr_ctx_t *sr_ctx;
-    ngx_chain_t          *out;
 
     sr_ctx = ngx_http_get_module_ctx(r, ngx_http_zip_module);
 
