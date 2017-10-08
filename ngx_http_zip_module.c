@@ -32,8 +32,6 @@ static ngx_int_t ngx_http_zip_main_request_body_filter(ngx_http_request_t *r,
 static ngx_int_t ngx_http_zip_subrequest_body_filter(ngx_http_request_t *r, 
         ngx_chain_t *in);
 
-static ngx_chain_t* ngx_http_zip_subrequest_range(ngx_http_request_t *r, ngx_chain_t *in, 
-        ngx_http_zip_sr_ctx_t *sr_ctx);
 static ngx_int_t ngx_http_zip_subrequest_update_crc32(ngx_chain_t *in, 
         ngx_http_zip_file_t *file);
 static ngx_int_t ngx_http_zip_subrequest_done(ngx_http_request_t *r, void *data, ngx_int_t rc);
