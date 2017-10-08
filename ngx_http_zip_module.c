@@ -363,7 +363,8 @@ ngx_http_zip_subrequest_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
     sr_ctx = ngx_http_get_module_ctx(r, ngx_http_zip_module);
 
     if (in && sr_ctx && sr_ctx->requesting_file->missing_crc32) {
-        uint32_t old_crc32 = sr_ctx->requesting_file->crc32, new_crc32 = 0;
+        uint32_t old_crc32, new_crc32;
+        old_crc32 = sr_ctx->requesting_file->crc32;
         ngx_http_zip_subrequest_update_crc32(in, sr_ctx->requesting_file);
         new_crc32 = sr_ctx->requesting_file->crc32;
 
@@ -580,7 +581,8 @@ ngx_http_zip_send_trailer_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
     ngx_chain_t *link;
 
     if (piece->file->missing_crc32) { // should always be true, but if we somehow needed trailer piece - go on
-        uint32_t old_crc32 = piece->file->crc32, new_crc32 = 0;
+        uint32_t old_crc32, new_crc32 = 0;
+        old_crc32 = piece->file->crc32;
         ngx_crc32_final(piece->file->crc32);
         new_crc32 = piece->file->crc32;
 
