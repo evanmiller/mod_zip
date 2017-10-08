@@ -205,3 +205,44 @@ ngx_http_zip_strip_range_header(ngx_http_request_t *r)
     return NGX_OK;
 }
 
+ngx_int_t
+ngx_http_zip_init_subrequest_headers(ngx_http_request_t *r, ngx_http_request_t *sr,
+        ngx_http_zip_range_t *piece_range, ngx_http_zip_range_t *req_range)
+{
+    ngx_memzero(&sr->headers_in, sizeof(sr->headers_in));
+    sr->headers_in.content_length_n = -1;
+    sr->headers_in.keep_alive_n = -1;
+
+    if (ngx_list_init(&sr->headers_in.headers, r->pool, 1, sizeof(ngx_table_elt_t)) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    if (req_range && (piece_range->start < req_range->start || piece_range->end > req_range->end)) {
+        ngx_table_elt_t *range_header = ngx_list_push(&sr->headers_in.headers);
+        off_t start = req_range->start - piece_range->start;
+        off_t end = req_range->end - piece_range->start;
+
+        if (start < 0)
+            start = 0;
+        if (end > piece_range->end)
+            end = piece_range->end;
+
+        if (range_header == NULL)
+            return NGX_ERROR;
+
+        range_header->value.data = ngx_pnalloc(r->pool, sizeof("bytes=-") + 2 * NGX_OFF_T_LEN);
+        if (range_header->value.data == NULL)
+            return NGX_ERROR;
+
+        range_header->value.len = ngx_sprintf(range_header->value.data, "bytes=%O-%O", start, end-1)
+            - range_header->value.data;
+        range_header->value.data[range_header->value.len] = '\0';
+
+        range_header->hash = 1;
+        ngx_str_set(&range_header->key, "Range");
+
+        sr->headers_in.range = range_header;
+    }
+
+    return NGX_OK;
+}

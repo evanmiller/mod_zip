@@ -10,3 +10,5 @@ ngx_int_t ngx_http_zip_add_partial_content_range(ngx_http_request_t *r,
 ngx_int_t ngx_http_zip_init_multipart_range(ngx_http_request_t *r,
         ngx_http_zip_ctx_t *ctx);
 
+ngx_int_t ngx_http_zip_init_subrequest_headers(ngx_http_request_t *r, ngx_http_request_t *sr,
+        ngx_http_zip_range_t *piece_range, ngx_http_zip_range_t *req_range);

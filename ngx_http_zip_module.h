@@ -78,7 +78,5 @@ typedef struct {
 
 typedef struct {
     ngx_http_zip_file_t    *requesting_file;
-    ngx_http_zip_range_t   *range;
-    off_t                   subrequest_pos;
 } ngx_http_zip_sr_ctx_t;
 
