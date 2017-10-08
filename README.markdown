@@ -5,7 +5,14 @@ mod_zip
 mod_zip assembles ZIP archives dynamically. It can stream component files from
 upstream servers with nginx's native proxying code, so that the process never
 takes up more than a few KB of RAM at a time, even while assembling archives that
-are (potentially) hundreds of megabytes.
+are (potentially) gigabytes in size.
+
+mod_zip supports a number of "modern" ZIP features, including large files, UTC
+timestamps, and UTF-8 filenames. It allows clients to resume large downloads using
+the "Range" and "If-Range" headers, although these feature require the server
+to know the file checksums (CRC-32's) in advance. See "Usage" for details.
+
+To unzip files on the fly, check out [nginx-unzip-module](https://github.com/youzee/nginx-unzip-module).
 
 
 Installation
@@ -13,7 +20,7 @@ Installation
 
 To install, compile nginx with the following option:
 
-    --add-module=/path/to/this/directory
+    --add-module=/path/to/mod_zip
 
 * nginx 1.10.0 or later is required
 * (optional) to enable the `X-Archive-Charset` header, libiconv is required
