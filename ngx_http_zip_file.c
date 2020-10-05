@@ -249,18 +249,29 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
     // names encoded in native charset. It's equal to 'X-Archive-Charset: native;'.
     // Note: Currently it is impossible after '[PATCH] Support for UTF-8 file names.'(4f61592b)
     // because UFT-8 flag (zip_utf8_flag) is set default for templates.
+    ngx_int_t variable_header_status = NGX_OK;
+    if (r->upstream) {
+        variable_header_status = ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_name_separator,
+                &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1);
+    } else {
+        vv->not_found = 1;
+    }
 
-    if (ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_name_separator,
-                &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1) == NGX_OK && !vv->not_found) {
+    if (variable_header_status == NGX_OK && !vv->not_found) {
         ctx->native_charset = 1;
         if(vv->len)
             ctx->unicode_path = 1;
     } else {
 #ifdef NGX_ZIP_HAVE_ICONV
-        if (ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_charset_name,
-                    &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1) == NGX_OK
-                && !vv->not_found && ngx_strncmp(vv->data, "utf8", sizeof("utf8") - 1) != 0) {
-
+        variable_header_status = NGX_OK;
+        if (r->upstream) {
+            variable_header_status = ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_charset_name,
+                    &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1);
+        } else {
+            vv->not_found = 1;
+        }
+        if (variable_header_status == NGX_OK && !vv->not_found
+                && ngx_strncmp(vv->data, "utf8", sizeof("utf8") - 1) != 0) {
             if(ngx_strncmp(vv->data, "native", sizeof("native") - 1))
             {
                 char encoding[ICONV_CSNMAXLEN];
