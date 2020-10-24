@@ -334,11 +334,7 @@ _again:
     /* suppress warning */
     (void)request_en_main;
 
-    if (cs < 
-#line 339 "ngx_http_zip_parsers.c"
-11
-#line 150 "ngx_http_zip_parsers.rl"
-) {
+    if (cs < 11) {
         return NGX_ERROR;
     }
 
@@ -348,7 +344,7 @@ _again:
 }
 
 
-#line 352 "ngx_http_zip_parsers.c"
+#line 348 "ngx_http_zip_parsers.c"
 static const char _range_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 2, 
 	0, 1, 2, 3, 1
@@ -412,12 +408,12 @@ ngx_http_zip_parse_range(ngx_http_request_t *r, ngx_str_t *range_str, ngx_http_z
     u_char *pe = range_str->data + range_str->len;
 
     
-#line 416 "ngx_http_zip_parsers.c"
+#line 412 "ngx_http_zip_parsers.c"
 	{
 	cs = range_start;
 	}
 
-#line 421 "ngx_http_zip_parsers.c"
+#line 417 "ngx_http_zip_parsers.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -518,7 +514,7 @@ _match:
 #line 192 "ngx_http_zip_parsers.rl"
 	{ suffix = 1; }
 	break;
-#line 522 "ngx_http_zip_parsers.c"
+#line 518 "ngx_http_zip_parsers.c"
 		}
 	}
 
@@ -537,11 +533,7 @@ _again:
     /* suppress warning */
     (void)range_en_main;
 
-    if (cs < 
-#line 542 "ngx_http_zip_parsers.c"
-10
-#line 210 "ngx_http_zip_parsers.rl"
-) {
+    if (cs < 10) {
         return NGX_ERROR;
     }
 
