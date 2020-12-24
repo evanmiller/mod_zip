@@ -7,7 +7,7 @@ jobs:
       fail-fast: false
       matrix:
         compiler: [ gcc, clang ]
-        version: [ 1.10.3, 1.11.13, 1.12.1, 1.13.5, 1.19.3 ]
+        version: [ 1.10.3, 1.11.13, 1.12.1, 1.13.5, 1.19.6 ]
     steps:
       - name: Install carton
         run: sudo apt install carton
@@ -21,6 +21,7 @@ jobs:
         working-directory: nginx-${{ matrix.version }}
         env:
           CC: ${{ matrix.compiler }}
+          CFLAGS: -Wno-implicit-fallthrough
       - name: Make
         run: make
         working-directory: nginx-${{ matrix.version }}
