@@ -18,21 +18,21 @@ jobs:
         run: tar xvfz nginx-${{ matrix.version }}.tar.gz
       - name: Configure
         run: ./configure --prefix=${GITHUB_WORKSPACE}/t/nginx --add-module=${GITHUB_WORKSPACE}
-        working-directory: ${GITHUB_WORKSPACE}/nginx-${{ matrix.version }}
+        working-directory: nginx-${{ matrix.version }}
         env:
           CC: ${{ matrix.compiler }}
       - name: Make
         run: make
-        working-directory: ${GITHUB_WORKSPACE}/nginx-${{ matrix.version }}
+        working-directory: nginx-${{ matrix.version }}
       - name: Make install
         run: make install
-        working-directory: ${GITHUB_WORKSPACE}/nginx-${{ matrix.version }}
+        working-directory: nginx-${{ matrix.version }}
       - name: Start nginx
         run: ./restart.sh
-        working-directory: ${GITHUB_WORKSPACE}/t
+        working-directory: t
       - name: Carton install
         run: carton install
-        working-directory: ${GITHUB_WORKSPACE}/t
+        working-directory: t
       - name: Carton exec
         run: carton exec ./ziptest.pl
-        working-directory: ${GITHUB_WORKSPACE}/t
+        working-directory: t
