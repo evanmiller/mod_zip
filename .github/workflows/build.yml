@@ -10,7 +10,7 @@ jobs:
         version: [ 1.10.3, 1.11.13, 1.12.1, 1.13.5, 1.19.3 ]
     steps:
       - name: Install carton
-        run: apt install carton
+        run: sudo apt install carton
       - uses: actions/checkout@v2
       - name: Download nginx
         run: wget http://nginx.org/download/nginx-${{ matrix.version }}.tar.gz
