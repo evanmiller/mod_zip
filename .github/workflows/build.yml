@@ -1,0 +1,39 @@
+name: build
+on: [ push, pull_request ]
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [ gcc, clang ]
+        version: [ 1.10.3, 1.11.13, 1.12.1, 1.13.5, 1.19.6 ]
+    steps:
+      - name: Install carton
+        run: sudo apt install carton
+      - uses: actions/checkout@v2
+      - name: Download nginx
+        run: wget http://nginx.org/download/nginx-${{ matrix.version }}.tar.gz
+      - name: Untar nginx
+        run: tar xvfz nginx-${{ matrix.version }}.tar.gz
+      - name: Configure
+        run: ./configure --prefix=${GITHUB_WORKSPACE}/t/nginx --add-module=${GITHUB_WORKSPACE}
+        working-directory: nginx-${{ matrix.version }}
+        env:
+          CC: ${{ matrix.compiler }}
+          CFLAGS: -Wno-implicit-fallthrough
+      - name: Make
+        run: make
+        working-directory: nginx-${{ matrix.version }}
+      - name: Make install
+        run: make install
+        working-directory: nginx-${{ matrix.version }}
+      - name: Start nginx
+        run: ./restart.sh
+        working-directory: t
+      - name: Carton install
+        run: carton install
+        working-directory: t
+      - name: Carton exec
+        run: carton exec ./ziptest.pl
+        working-directory: t
