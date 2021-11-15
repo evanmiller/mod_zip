@@ -2,7 +2,7 @@
 
 # TODO tests for Zip64
 
-use Test::More tests => 84;
+use Test::More tests => 93;
 use LWP::UserAgent;
 use Archive::Zip;
 
@@ -11,13 +11,14 @@ $http_root = "http://localhost:8081";
 
 sub set_debug_log($) {
     my $label = shift;
+    my $debug = "debug";
     $/ = "\n";
     open( NEWCONF, ">", "nginx/conf/nginx.conf" );
 
     open( CONF, "<", "nginx.conf" );
     while(my $line = <CONF>) {
         if ($line eq "error_log  logs/error.log  debug;\n") {
-            print NEWCONF "error_log  logs/error-$label.log  debug;\n";
+            print NEWCONF "error_log  logs/error-$label.log  $debug;\n";
         } else {
             print NEWCONF $line;
         }
@@ -30,8 +31,9 @@ sub set_debug_log($) {
     if ($?) {
         print "Starting nginx...\n";
         `nginx/sbin/nginx`;
+    } else {
+        `/bin/kill -HUP $pid`;
     }
-    `/bin/kill -HUP $pid`;
     sleep 1;
 }
 
@@ -107,12 +109,18 @@ set_debug_log("basic-zip");
 $response = $ua->get("$http_root/zip-missing-crc.txt");
 is($response->code, 200, "Returns OK with missing CRC");
 like($response->header("Content-Length"), qr/^\d+$/, "Content-Length header when missing CRC");
-is($response->header("Accept-Ranges"), undef, "No Accept-Ranges header when missing CRC (fails with nginx 0.7.44 - 0.8.6)");
+is($response->header("Accept-Ranges"), undef, "No Accept-Ranges header when missing CRC");
 
 $zip = test_zip_archive($response->content, "when missing CRC");
 is($zip->memberNamed("file1.txt")->hasDataDescriptor(), 8, "Has data descriptor when missing CRC");
 is($zip->memberNamed("file1.txt")->crc32String(), "1a6349c5", "Generated file1.txt CRC is correct");
 is($zip->memberNamed("file2.txt")->crc32String(), "5d70c4d3", "Generated file2.txt CRC is correct");
+
+$response = $ua->get("$http_root/zip-uppercase-crc.txt");
+is($response->code, 200, "Returns OK with uppercase CRC");
+$zip = test_zip_archive($response->content, "with uppercase CRC");
+is($zip->memberNamed("file1.txt")->crc32String(), "1a6349c5", "file1.txt CRC is correct");
+is($zip->memberNamed("file2.txt")->crc32String(), "5d70c4d3", "file2.txt CRC is correct");
 
 $response = $ua->get("$http_root/zip-404.txt");
 is($response->code, 500, "Server error with bad file");
@@ -128,14 +136,21 @@ is($response->code, 200, "Returns OK with local files");
 
 $zip = test_zip_archive($response->content, "with local files");
 is($zip->numberOfMembers(), 2, "Correct number in local-file ZIP");
-is($zip->memberNamed("file1.txt")->crc32String(), "1a6349c5", "Generated file1.txt CRC is correct (local)");
-is($zip->memberNamed("file2.txt")->crc32String(), "5d70c4d3", "Generated file2.txt CRC is correct (local)");
+is($zip->memberNamed("file1.txt")->crc32String(), "1a6349c5", "file1.txt CRC is correct (local)");
+is($zip->memberNamed("file2.txt")->crc32String(), "5d70c4d3", "file2.txt CRC is correct (local)");
 
 $response = $ua->get("$http_root/zip-spaces.txt");
 is($response->code, 200, "Returns OK with spaces in URLs");
 
 $zip = test_zip_archive($response->content, "with spaces in URLs");
 is($zip->numberOfMembers(), 2, "Correct number in spaced-out ZIP");
+
+$response = $ua->get("$http_root/zip-spaces-plus.txt");
+is($response->code, 200, "Returns OK with spaces and plus in URLs");
+
+$zip = test_zip_archive($response->content, "with spaces and plus in the URLs");
+is($zip->numberOfMembers(), 2, "Correct number in spaces and plus ZIP");
+
 
 open LARGEFILE, ">", "nginx/html/largefile.txt";
 for (0..99999) {
@@ -229,6 +244,7 @@ is(length($response->content), ($file2_offset+4)-($file1_offset+9)+1, "Length of
 is(substr($response->content, 0, 14), "the first file", "Subrange spanning part of first file");
 is(substr($response->content, 68, 4), "This", "Subrange spanning part of second file");
 
+# Subrange including part of first and second files (local).
 $response = $ua->get("$http_root/zip-local-files.txt", "Range" => "bytes=".($file1_offset+9)."-".($file2_offset+4));
 open TMPFILE, ">", "/tmp/partial.zip";
 print TMPFILE $response->content;
@@ -299,4 +315,4 @@ is($response->code, 200, "200 OK -- when If-Range is not ETag");
 $response = $ua->get("$http_root/zip.txt",
     "If-Range" => "3.14159",
     "Range" => "bytes=0-1");
-is($response->code, 206, "206 Partial Content -- when If-Range is ETag (requires nginx 0.8.10+ or nginx-0.8.9-etag.patch)");
+is($response->code, 206, "206 Partial Content -- when If-Range is ETag");

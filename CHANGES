@@ -1,3 +1,21 @@
+Changes with mod_zip 1.2.0                                       24 Oct 2020
+
+    *) Bugfix: Flush file header under SSL #44 #50
+
+    *) Bugfix: File names containing a plus symbol #13 #20
+
+    *) Bugfix: 1-byte buffer overflow #47
+
+    *) Bugfix: Validate upstream location #69
+
+    *) Feature: Support for Unicode file paths #4
+
+    *) Feature: Support for big-endian platforms #28
+
+    *) Feature: Support for non-upstream locations #26
+
+    *) Feature: Support for compilation as a dynamic module #62
+
 Changes with mod_zip 1.1.6                                       13 Sep 2010
 
     *) Feature: Support for UTF-8 filenames. Thanks to Robbie Scott/Bandcamp
