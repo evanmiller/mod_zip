@@ -209,12 +209,35 @@ ngx_int_t
 ngx_http_zip_init_subrequest_headers(ngx_http_request_t *r, ngx_http_request_t *sr,
         ngx_http_zip_range_t *piece_range, ngx_http_zip_range_t *req_range)
 {
+    ngx_list_t headers_old;
+    ngx_list_part_t *next_part;
+    ngx_table_elt_t *h;
+    ngx_uint_t i;
+
+    ngx_memcpy(&headers_old, &sr->headers_in.headers, sizeof(headers_old));
     ngx_memzero(&sr->headers_in, sizeof(sr->headers_in));
     sr->headers_in.content_length_n = -1;
     sr->headers_in.keep_alive_n = -1;
 
     if (ngx_list_init(&sr->headers_in.headers, r->pool, 1, sizeof(ngx_table_elt_t)) != NGX_OK) {
         return NGX_ERROR;
+    }
+
+    next_part = &headers_old.part;
+
+    for (; next_part; next_part = next_part->next) {
+        h = next_part->elts;
+
+        for (i = 0; i < next_part->nelts; ++i) {
+            if ((!ngx_rstrncasecmp(h[i].key.data, "X-", sizeof("X-") - 1)
+                 && ngx_rstrncasecmp(h[i].key.data, "X-Range", sizeof("X-Range") - 1))
+                    || !ngx_rstrncasecmp(h[i].key.data, "Authorization", sizeof("Authorization") - 1)
+                    || !ngx_rstrncasecmp(h[i].key.data, "Cookie", sizeof("Cookie") - 1)
+                    || !ngx_rstrncasecmp(h[i].key.data, "User-Agent", sizeof("User-Agent") - 1)
+                    ) {
+                ngx_memcpy(ngx_list_push(&sr->headers_in.headers), &h[i], sizeof(ngx_table_elt_t));
+            }
+        }
     }
 
     if (req_range && (piece_range->start < req_range->start || piece_range->end > req_range->end)) {

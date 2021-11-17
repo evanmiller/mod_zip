@@ -560,7 +560,7 @@ ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
         return NGX_ERROR;
     }
 
-    if ((sr_ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_ctx_t))) == NULL) {
+    if ((sr_ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_sr_ctx_t))) == NULL) {
         return NGX_ERROR;
     }
 
