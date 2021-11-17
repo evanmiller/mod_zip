@@ -390,7 +390,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         header_piece->range.end = offset;
 
         file_piece = &ctx->pieces[piece_i++];
-        file_piece->type = zip_file_piece;
+        file_piece->type = file->is_directory ? zip_dir_piece : zip_file_piece;
         file_piece->file = file;
         file_piece->range.start = offset;
         file_piece->range.end = offset += file->size; //!note: (sizeless chunks): we need file size here / or mark it and modify ranges after
@@ -683,6 +683,11 @@ ngx_http_zip_write_central_directory_entry(u_char *p, ngx_http_zip_file_t *file,
     central_directory_file_header.version_made_by = htole16(central_directory_file_header.version_made_by);
     central_directory_file_header.version_needed = htole16(central_directory_file_header.version_needed);
     central_directory_file_header.flags = htole16(central_directory_file_header.flags);
+
+    if (file->is_directory) {
+        central_directory_file_header.attr_external = zip_directory_attr_external;
+    }
+
     central_directory_file_header.attr_external = htole32(central_directory_file_header.attr_external);
     central_directory_file_header.mtime = htole32(file->dos_time);
     central_directory_file_header.crc32 = htole32(file->crc32);
