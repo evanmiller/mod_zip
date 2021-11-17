@@ -9,6 +9,9 @@
 #define zip_version_zip64 45
 #define zip_utf8_flag 0x0800
 #define zip_missing_crc32_flag 0x08
+#define zip_directory_attr_external 0x41ED0010
+//                      Unix dir bit -^     ^- DOS dir bit
+//        Unix permission bits (0755) -^^^
 
 typedef struct {
     uint16_t   tag; //0x5455
