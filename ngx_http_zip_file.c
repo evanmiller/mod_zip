@@ -12,6 +12,7 @@
 static ngx_str_t ngx_http_zip_header_charset_name = ngx_string("upstream_http_x_archive_charset");
 #endif
 static ngx_str_t ngx_http_zip_header_name_separator = ngx_string("upstream_http_x_archive_name_sep");
+static ngx_str_t ngx_http_zip_header_name_pass_headers = ngx_string("upstream_http_x_archive_pass_headers");
 
 #define NGX_MAX_UINT16_VALUE 0xffff
 
@@ -427,6 +428,45 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
     ctx->pieces_n = piece_i; //!! nasty hack (truncating allocated array without reallocation)
 
     ctx->archive_size = offset;
+
+    // Collect names of original request's header fields that
+    // have to be present in each of the issued sub-requests.
+    variable_header_status = ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_name_pass_headers,
+            &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1);
+
+    if (variable_header_status == NGX_OK && !vv->not_found) {
+        ngx_str_t *header;
+        ngx_int_t len;
+        u_char    *next;
+        u_char    *start = vv->data;
+        u_char    *end = vv->data + vv->len;
+
+        // Split the list of names by ':'.
+        while (start < end) {
+            next = ngx_strnstr(start, ":", end - start);
+
+            if (next == NULL) {
+                next = end;
+            }
+
+            len = next - start;
+
+            if (len) {
+                if ((header = ngx_array_push(&ctx->pass_srq_headers)) == NULL) {
+                    return NGX_ERROR;
+                }
+
+                if ((header->data = ngx_pnalloc(r->pool, len)) == NULL) {
+                      return NGX_ERROR;
+                }
+
+                ngx_memcpy(header->data, start, len);
+                header->len = len;
+            }
+
+            start = next + 1;
+        }
+    }
 
     return NGX_OK;
 }

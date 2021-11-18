@@ -56,6 +56,12 @@ A special URL marker `@directory` can be used to declare a directory entry
 within an archive. This is very convenient when you have to package a tree of
 files, including some empty directories. As they have to be declared explicitly.
 
+If you want mod_zip to include some HTTP headers of the original request, in the
+sub-requests that fetch content of files, then pass the list of their names in
+the following HTTP header:
+
+    X-Archive-Pass-Headers: <header-name>[:<header-name>]*
+
 
 Re-encoding filenames
 ---
