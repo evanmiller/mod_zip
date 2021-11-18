@@ -1,0 +1,2 @@
+0        0  @directory empty_dir1/
+0        0  @directory empty_dir2/

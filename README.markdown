@@ -44,12 +44,17 @@ and is what will be extracted from the ZIP file. Example:
 
     1034ab38 428    /foo.txt   My Document1.txt
     83e8110b 100339 /bar.txt   My Other Document1.txt
+    0        0      @directory My empty directory
 
 Files are retrieved and encoded in order. If a file cannot be found or the file
 request returns any sort of error, the download is aborted.
 
 The CRC-32 is optional. Put "-" if you don't know the CRC-32; note that in this
 case mod_zip will disable support for the `Range` header.
+
+A special URL marker `@directory` can be used to declare a directory entry
+within an archive. This is very convenient when you have to package a tree of
+files, including some empty directories. As they have to be declared explicitly.
 
 If you want mod_zip to include some HTTP headers of the original request, in the
 sub-requests that fetch content of files, then pass the list of their names in

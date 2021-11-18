@@ -28,6 +28,7 @@ typedef struct {
     unsigned    missing_crc32:1;
     unsigned    need_zip64:1;
     unsigned    need_zip64_offset:1;
+    unsigned    is_directory:1;
 } ngx_http_zip_file_t;
 
 typedef struct {
@@ -41,6 +42,7 @@ typedef struct {
 typedef enum {
     zip_header_piece, //local file header
     zip_file_piece, // file data
+    zip_dir_piece, // directory data
     zip_trailer_piece, // data descriptor (for files without CRC, exists if bit 3 of GP flag is set),
     zip_trailer_piece64, // the same but for zip64 (if zip64 extended information extra field is in file header)
     zip_central_directory_piece,
