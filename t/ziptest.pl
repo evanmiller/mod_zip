@@ -2,7 +2,7 @@
 
 # TODO tests for Zip64
 
-use Test::More tests => 93;
+use Test::More tests => 103;
 use LWP::UserAgent;
 use Archive::Zip;
 
@@ -150,6 +150,22 @@ is($response->code, 200, "Returns OK with spaces and plus in URLs");
 
 $zip = test_zip_archive($response->content, "with spaces and plus in the URLs");
 is($zip->numberOfMembers(), 2, "Correct number in spaces and plus ZIP");
+
+########## Package empty directories
+
+$response = $ua->get("$http_root/zip-empty-dirs.txt");
+$zip = test_zip_archive($response->content, "with empty directories");
+is($response->code, 200, "Returns OK with mixed empty directories and files");
+is($zip->memberNamed("file1.txt")->isBinaryFile(), 1, "file1.txt exists in archive");
+is($zip->memberNamed("empty_dir1/")->isDirectory(), 1, "empty_dir1 exists in archive");
+is($zip->memberNamed("file2.txt")->isBinaryFile(), 1, "file2.txt exists in archive");
+is($zip->memberNamed("empty_dir2/")->isDirectory(), 1, "empty_dir2 exists in archive");
+
+$response = $ua->get("$http_root/zip-only-empty-dirs.txt");
+$zip = write_temp_zip($response->content);
+is($response->code, 200, "Returns OK with only empty directories");
+is($zip->memberNamed("empty_dir1/")->isDirectory(), 1, "empty_dir1 exists in archive");
+is($zip->memberNamed("empty_dir2/")->isDirectory(), 1, "empty_dir2 exists in archive");
 
 
 open LARGEFILE, ">", "nginx/html/largefile.txt";
