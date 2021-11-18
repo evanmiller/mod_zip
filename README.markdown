@@ -51,6 +51,12 @@ request returns any sort of error, the download is aborted.
 The CRC-32 is optional. Put "-" if you don't know the CRC-32; note that in this
 case mod_zip will disable support for the `Range` header.
 
+If you want mod_zip to include some HTTP headers of the original request, in the
+sub-requests that fetch content of files, then pass the list of their names in
+the following HTTP header:
+
+    X-Archive-Pass-Headers: <header-name>[:<header-name>]*
+
 
 Re-encoding filenames
 ---

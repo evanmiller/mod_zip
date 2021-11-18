@@ -66,6 +66,7 @@ typedef struct {
     off_t                   archive_size;
     off_t                   cd_size; // zip central directory size
     ngx_http_request_t     *wait;
+    ngx_array_t             pass_srq_headers;
 
     unsigned                parsed:1;
     unsigned                trailer_sent:1;

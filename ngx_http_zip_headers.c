@@ -2,6 +2,22 @@
 #include "ngx_http_zip_headers.h"
 #include "ngx_http_zip_file.h"
 
+static ngx_uint_t
+ngx_http_zip_find_key_in_set(ngx_str_t *key, ngx_array_t *set)
+{
+    ngx_uint_t i;
+    ngx_str_t  *items = set->elts;
+
+    for (i = 0; i < set->nelts; ++i) {
+        if (items[i].len == key->len
+                && !ngx_rstrncasecmp(items[i].data, key->data, key->len)) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 ngx_int_t 
 ngx_http_zip_add_cache_control(ngx_http_request_t *r)
 {
@@ -206,39 +222,39 @@ ngx_http_zip_strip_range_header(ngx_http_request_t *r)
 }
 
 ngx_int_t
-ngx_http_zip_init_subrequest_headers(ngx_http_request_t *r, ngx_http_request_t *sr,
-        ngx_http_zip_range_t *piece_range, ngx_http_zip_range_t *req_range)
+ngx_http_zip_init_subrequest_headers(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
+        ngx_http_request_t *sr, ngx_http_zip_range_t *piece_range,
+        ngx_http_zip_range_t *req_range)
 {
-    ngx_list_t headers_old;
-    ngx_list_part_t *next_part;
-    ngx_table_elt_t *h;
-    ngx_uint_t i;
+    ngx_list_t new_headers;
 
-    ngx_memcpy(&headers_old, &sr->headers_in.headers, sizeof(headers_old));
-    ngx_memzero(&sr->headers_in, sizeof(sr->headers_in));
-    sr->headers_in.content_length_n = -1;
-    sr->headers_in.keep_alive_n = -1;
-
-    if (ngx_list_init(&sr->headers_in.headers, r->pool, 1, sizeof(ngx_table_elt_t)) != NGX_OK) {
+    if (ngx_list_init(&new_headers, r->pool, 1, sizeof(ngx_table_elt_t)) != NGX_OK) {
         return NGX_ERROR;
     }
 
-    next_part = &headers_old.part;
+    if (ctx->pass_srq_headers.nelts) {
+        // Pass original header fileds, that appear on the list.
+        ngx_list_part_t *next_part;
+        ngx_table_elt_t *h;
+        ngx_uint_t      i;
 
-    for (; next_part; next_part = next_part->next) {
-        h = next_part->elts;
+        next_part = &sr->headers_in.headers.part;
 
-        for (i = 0; i < next_part->nelts; ++i) {
-            if ((!ngx_rstrncasecmp(h[i].key.data, "X-", sizeof("X-") - 1)
-                 && ngx_rstrncasecmp(h[i].key.data, "X-Range", sizeof("X-Range") - 1))
-                    || !ngx_rstrncasecmp(h[i].key.data, "Authorization", sizeof("Authorization") - 1)
-                    || !ngx_rstrncasecmp(h[i].key.data, "Cookie", sizeof("Cookie") - 1)
-                    || !ngx_rstrncasecmp(h[i].key.data, "User-Agent", sizeof("User-Agent") - 1)
-                    ) {
-                ngx_memcpy(ngx_list_push(&sr->headers_in.headers), &h[i], sizeof(ngx_table_elt_t));
+        for (; next_part; next_part = next_part->next) {
+            h = next_part->elts;
+
+            for (i = 0; i < next_part->nelts; ++i) {
+                if (ngx_http_zip_find_key_in_set(&h[i].key, &ctx->pass_srq_headers)) {
+                    ngx_memcpy(ngx_list_push(&new_headers), &h[i], sizeof(ngx_table_elt_t));
+                }
             }
         }
     }
+
+    ngx_memzero(&sr->headers_in, sizeof(sr->headers_in));
+    ngx_memcpy(&sr->headers_in.headers, &new_headers, sizeof(new_headers));
+    sr->headers_in.content_length_n = -1;
+    sr->headers_in.keep_alive_n = -1;
 
     if (req_range && (piece_range->start < req_range->start || piece_range->end > req_range->end)) {
         ngx_table_elt_t *range_header = ngx_list_push(&sr->headers_in.headers);
