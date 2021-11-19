@@ -2,7 +2,7 @@
 
 # TODO tests for Zip64
 
-use Test::More tests => 115;
+use Test::More tests => 120;
 use LWP::UserAgent;
 use Archive::Zip;
 
@@ -166,6 +166,12 @@ is($response->code, 200, "Returns OK with only empty directories");
 $zip = write_temp_zip($response->content);
 is($zip->memberNamed("empty_dir1/")->isDirectory(), 1, "empty_dir1 exists in archive");
 is($zip->memberNamed("empty_dir2/")->isDirectory(), 1, "empty_dir2 exists in archive");
+
+$response = $ua->get("$http_root/zip-not-empty-dirs.txt");
+is($response->code, 200, "Returns OK with urls that start with @ but not a '\@directory' marker");
+$zip = test_zip_archive($response->content, "with not empty directories");
+is($zip->memberNamed("file1.txt")->isBinaryFile(), 1, "file1.txt exists in archive");
+is($zip->memberNamed("file2.txt")->isBinaryFile(), 1, "file2.txt exists in archive");
 
 ########## Pass headers in sub-requests
 
