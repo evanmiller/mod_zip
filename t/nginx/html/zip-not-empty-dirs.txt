@@ -1,0 +1,2 @@
+1a6349c5 24 @not_directory file1.txt
+5d70c4d3 25 @directory_not file2.txt

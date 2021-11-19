@@ -95,16 +95,20 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
             parsing_file->index = ctx->files.nelts - 1;
         }
 
-        action is_directory {
-            parsing_file->is_directory = 1;
-            // Directory has no content.
-            parsing_file->size = 0;
-            parsing_file->crc32 = 0;
-            parsing_file->missing_crc32 = 0;
-            parsing_file->uri.data = NULL;
-            parsing_file->uri.len = 0;
-            parsing_file->args.data = NULL;
-            parsing_file->args.len = 0;
+        action check_directory {
+            if (parsing_file->args.len == 0
+                    && parsing_file->uri.len == sizeof("@directory") - 1
+                    && ngx_strncmp(parsing_file->uri.data, "@directory", parsing_file->uri.len) == 0) {
+                parsing_file->is_directory = 1;
+                // Directory has no content.
+                parsing_file->size = 0;
+                parsing_file->crc32 = 0;
+                parsing_file->missing_crc32 = 0;
+                parsing_file->uri.data = NULL;
+                parsing_file->uri.len = 0;
+                parsing_file->args.data = NULL;
+                parsing_file->args.len = 0;
+            }
         }
 
         action start_uri {
@@ -146,11 +150,9 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
                   [0-9]+ $size_incr
                   " "+
                   (
-                    "@directory" >is_directory
-                    |
                     [^? ]+ >start_uri %end_uri
                     ( "?" [^ ]+ >start_args %end_args )?
-                  )
+                  ) %check_directory
                   " "+
                   [^ ] >start_filename
                   [^\r\n\0]* %end_filename;
