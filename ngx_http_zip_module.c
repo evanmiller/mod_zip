@@ -221,7 +221,8 @@ ngx_http_zip_main_request_header_filter(ngx_http_request_t *r)
 
     if ((ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_ctx_t))) == NULL 
         || ngx_array_init(&ctx->files, r->pool, 1, sizeof(ngx_http_zip_file_t)) == NGX_ERROR
-        || ngx_array_init(&ctx->ranges, r->pool, 1, sizeof(ngx_http_zip_range_t)) == NGX_ERROR)
+        || ngx_array_init(&ctx->ranges, r->pool, 1, sizeof(ngx_http_zip_range_t)) == NGX_ERROR
+        || ngx_array_init(&ctx->pass_srq_headers, r->pool, 1, sizeof(ngx_str_t)) == NGX_ERROR)
         return NGX_ERROR;
     
     ngx_http_set_ctx(r, ctx, ngx_http_zip_module);
@@ -552,7 +553,7 @@ ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
     sr->subrequest_ranges = 1;
     sr->single_range = 1;
 
-    rc = ngx_http_zip_init_subrequest_headers(r, sr, &piece->range, req_range);
+    rc = ngx_http_zip_init_subrequest_headers(r, ctx, sr, &piece->range, req_range);
     if (sr->headers_in.range) {
         ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                 "mod_zip: subrequest for \"%V?%V\" Range: %V", 
@@ -562,7 +563,7 @@ ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
         return NGX_ERROR;
     }
 
-    if ((sr_ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_ctx_t))) == NULL) {
+    if ((sr_ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_sr_ctx_t))) == NULL) {
         return NGX_ERROR;
     }
 
