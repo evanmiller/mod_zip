@@ -363,7 +363,7 @@ ngx_http_zip_subrequest_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
     ngx_http_zip_sr_ctx_t *sr_ctx;
 
-    sr_ctx = ngx_http_get_module_ctx(r, ngx_http_zip_module);
+    sr_ctx = ngx_http_get_module_ctx(r->main, ngx_http_zip_module);
 
     if (in && sr_ctx && sr_ctx->requesting_file->missing_crc32) {
         uint32_t old_crc32 = sr_ctx->requesting_file->crc32;
