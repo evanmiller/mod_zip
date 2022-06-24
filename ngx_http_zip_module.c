@@ -201,13 +201,13 @@ ngx_http_zip_main_request_header_filter(ngx_http_request_t *r)
     /* Look for X-Archive-Files */
     ngx_int_t variable_header_status = NGX_OK;
     if (r->upstream) {
-        variable_header_status = ngx_http_variable_unknown_header(vv,
+        variable_header_status = ngx_http_zip_variable_unknown_header(r, vv,
                 &ngx_http_zip_header_variable_name,
-                &r->upstream->headers_in.headers.part, sizeof("upstream_http_") - 1); 
+                &r->upstream->headers_in.headers.part, sizeof("upstream_http_") - 1);
     } else if (r->headers_out.status == NGX_HTTP_OK) {
-        variable_header_status = ngx_http_variable_unknown_header(vv,
+        variable_header_status = ngx_http_zip_variable_unknown_header(r, vv,
                 &ngx_http_zip_header_variable_name,
-                &r->headers_out.headers.part, sizeof("upstream_http_") - 1); 
+                &r->headers_out.headers.part, sizeof("upstream_http_") - 1);
     } else {
         vv->not_found = 1;
     }

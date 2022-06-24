@@ -36,3 +36,15 @@ if [ $ngx_found = yes ]; then
     CORE_LIBS="$CORE_LIBS $ngx_feature_libs"
     ngx_found=no
 fi
+
+ngx_feature="multi-value headers are linked lists (nginx 1.23.0+)"
+ngx_feature_name="NGX_ZIP_MULTI_HEADERS_LINKED_LISTS"
+ngx_feature_run=yes
+ngx_feature_incs="#include \"nginx.h\""
+ngx_feature_path="src/core"
+ngx_feature_test="
+#if nginx_version < 1023000
+#error multi headers are no linked lists
+#endif
+"
+. auto/feature

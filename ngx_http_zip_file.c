@@ -3,6 +3,7 @@
 #include "ngx_http_zip_file.h"
 #include "ngx_http_zip_file_format.h"
 #include "ngx_http_zip_endian.h"
+#include "ngx_http_zip_headers.h"
 
 #ifdef NGX_ZIP_HAVE_ICONV
 #include <iconv.h>
@@ -252,7 +253,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
     // because UFT-8 flag (zip_utf8_flag) is set default for templates.
     ngx_int_t variable_header_status = NGX_OK;
     if (r->upstream) {
-        variable_header_status = ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_name_separator,
+        variable_header_status = ngx_http_zip_variable_unknown_header(r, vv, &ngx_http_zip_header_name_separator,
                 &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1);
     } else {
         vv->not_found = 1;
@@ -266,7 +267,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
 #ifdef NGX_ZIP_HAVE_ICONV
         variable_header_status = NGX_OK;
         if (r->upstream) {
-            variable_header_status = ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_charset_name,
+            variable_header_status = ngx_http_zip_variable_unknown_header(r, vv, &ngx_http_zip_header_charset_name,
                     &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1);
         } else {
             vv->not_found = 1;
@@ -431,7 +432,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
 
     // Collect names of original request's header fields that
     // have to be present in each of the issued sub-requests.
-    variable_header_status = ngx_http_variable_unknown_header(vv, &ngx_http_zip_header_name_pass_headers,
+    variable_header_status = ngx_http_zip_variable_unknown_header(r, vv, &ngx_http_zip_header_name_pass_headers,
             &r->upstream->headers_in.headers.part, sizeof("upstream_http_")-1);
 
     if (variable_header_status == NGX_OK && !vv->not_found) {
