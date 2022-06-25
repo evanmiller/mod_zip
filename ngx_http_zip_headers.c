@@ -21,6 +21,36 @@ ngx_http_zip_find_key_in_set(ngx_str_t *key, ngx_array_t *set)
 ngx_int_t 
 ngx_http_zip_add_cache_control(ngx_http_request_t *r)
 {
+#ifdef NGX_ZIP_MULTI_HEADERS_LINKED_LISTS
+    ngx_table_elt_t            *cc;
+
+    /* convoluted way of adding Cache-Control: max-age=0 */
+    /* The header is necessary so IE doesn't barf */
+    cc = r->headers_out.cache_control;
+
+    if (cc == NULL) {
+        cc = ngx_list_push(&r->headers_out.headers);
+        if (cc == NULL) {
+            return NGX_ERROR;
+        }
+
+        r->headers_out.cache_control = cc;
+        cc->next = NULL;
+        cc->hash = 1;
+        ngx_str_set(&cc->key, "Cache-Control");
+    } else {
+         for (cc = cc->next; cc; cc = cc->next) {
+            cc->hash = 0;
+         }
+
+         cc = r->headers_out.cache_control;
+         cc->next = NULL;
+    }
+
+    ngx_str_set(&cc->value, "max-age=0");
+
+    return NGX_OK;
+#else
     ngx_table_elt_t           **ccp, *cc;
     ngx_uint_t                  i;
 
@@ -62,6 +92,7 @@ ngx_http_zip_add_cache_control(ngx_http_request_t *r)
     ngx_str_set(&cc->value, "max-age=0");
 
     return NGX_OK;
+#endif
 }
 
 ngx_int_t 
@@ -284,4 +315,17 @@ ngx_http_zip_init_subrequest_headers(ngx_http_request_t *r, ngx_http_zip_ctx_t *
     }
 
     return NGX_OK;
+}
+
+
+ngx_int_t
+ngx_http_zip_variable_unknown_header(ngx_http_request_t *r,
+                                 ngx_http_variable_value_t *v, ngx_str_t *var,
+                                 ngx_list_part_t *part, size_t prefix)
+{
+#ifdef NGX_ZIP_MULTI_HEADERS_LINKED_LISTS
+    return ngx_http_variable_unknown_header(r, v, var, part, prefix);
+#else
+    return ngx_http_variable_unknown_header(v, var, part, prefix);
+#endif
 }
