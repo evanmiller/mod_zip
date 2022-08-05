@@ -150,9 +150,9 @@ ngx_int_t
 ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
 {
     int cs;
-    u_char *p = ctx->unparsed_request->data;
-    u_char *pe = ctx->unparsed_request->data + ctx->unparsed_request->len;
-    u_char *eof = ctx->unparsed_request->data + ctx->unparsed_request->len;
+    u_char *p = ctx->unparsed_request.elts;
+    u_char *pe = p + ctx->unparsed_request.nelts;
+    u_char *eof = pe;
     ngx_http_zip_file_t *parsing_file = NULL;
 
     
