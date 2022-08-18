@@ -62,7 +62,6 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
     int cs;
     u_char *p = ctx->unparsed_request.elts;
     u_char *pe = p + ctx->unparsed_request.nelts;
-    u_char *eof = pe;
     ngx_http_zip_file_t *parsing_file = NULL;
 
     %%{
@@ -136,10 +135,10 @@ ngx_http_zip_parse_request(ngx_http_zip_ctx_t *ctx)
                   [^ ] >start_filename
                   [^\r\n\0]* %end_filename;
 
-        main := file_spec ([\r\n]+ file_spec)* [\r\n]*;
+        main := (file_spec [\r\n]+)*;
 
-       write init;
-       write exec;
+        write init;
+        write exec;
     }%%
 
     /* suppress warning */
