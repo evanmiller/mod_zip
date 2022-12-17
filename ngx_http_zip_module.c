@@ -11,7 +11,6 @@
 #include "ngx_http_zip_file.h"
 #include "ngx_http_zip_headers.h"
 
-static size_t ngx_chain_length(ngx_chain_t *chain_link);
 static ngx_chain_t *ngx_chain_last_link(ngx_chain_t *chain_link);
 static ngx_int_t ngx_http_zip_discard_chain(ngx_http_request_t *r,
         ngx_chain_t *in);
@@ -95,15 +94,6 @@ ngx_module_t  ngx_http_zip_module = {
     NGX_MODULE_V1_PADDING
 };
 
-static size_t ngx_chain_length(ngx_chain_t *chain_link)
-{
-    size_t len;
-    for (len=0; chain_link; chain_link = chain_link->next) {
-        len += chain_link->buf->last - chain_link->buf->pos;
-    }
-    return len;
-}
-
 static ngx_chain_t *ngx_chain_last_link(ngx_chain_t *chain_link)
 {
     ngx_chain_t *cl;
@@ -139,33 +129,13 @@ ngx_http_zip_ranges_intersect(ngx_http_zip_range_t *range1, ngx_http_zip_range_t
 static ngx_int_t ngx_http_zip_copy_unparsed_request(ngx_http_request_t *r,
         ngx_chain_t *in, ngx_http_zip_ctx_t *ctx)
 {
-    ngx_str_t   *old_unparsed_request;
     ngx_chain_t *chain_link;
-    size_t       len, offset = 0;
-
-    old_unparsed_request = ctx->unparsed_request;
-
-    len = ngx_chain_length(in);
-
-    if (old_unparsed_request != NULL)
-        len += old_unparsed_request->len;
-    
-    if ((ctx->unparsed_request = ngx_palloc(r->pool, sizeof(ngx_str_t))) == NULL 
-        || (ctx->unparsed_request->data = ngx_palloc(r->pool, len)) == NULL) {
-        return NGX_ERROR;
-    }
-
-    if (old_unparsed_request != NULL) {
-        ngx_memcpy(ctx->unparsed_request->data, old_unparsed_request->data, old_unparsed_request->len);
-        offset += old_unparsed_request->len;
-    }
+    void *buf;
 
     for (chain_link = in; chain_link; chain_link = chain_link->next ) {
-        ngx_memcpy(ctx->unparsed_request->data + offset, chain_link->buf->pos, chain_link->buf->last - chain_link->buf->pos);
-        offset += chain_link->buf->last - chain_link->buf->pos;
+        buf = ngx_array_push_n(&ctx->unparsed_request, chain_link->buf->last - chain_link->buf->pos);
+        ngx_memcpy(buf, chain_link->buf->pos, chain_link->buf->last - chain_link->buf->pos);
     }
-
-    ctx->unparsed_request->len = offset;
 
     chain_link = ngx_chain_last_link(in);
 
@@ -220,6 +190,7 @@ ngx_http_zip_main_request_header_filter(ngx_http_request_t *r)
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: X-Archive-Files found");
 
     if ((ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_ctx_t))) == NULL 
+        || ngx_array_init(&ctx->unparsed_request, r->pool, 64 * 1024, 1) == NGX_ERROR
         || ngx_array_init(&ctx->files, r->pool, 1, sizeof(ngx_http_zip_file_t)) == NGX_ERROR
         || ngx_array_init(&ctx->ranges, r->pool, 1, sizeof(ngx_http_zip_range_t)) == NGX_ERROR
         || ngx_array_init(&ctx->pass_srq_headers, r->pool, 1, sizeof(ngx_str_t)) == NGX_ERROR)

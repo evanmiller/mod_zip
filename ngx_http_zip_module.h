@@ -57,7 +57,7 @@ typedef struct {
 } ngx_http_zip_piece_t;
 
 typedef struct {
-    ngx_str_t              *unparsed_request;
+    ngx_array_t             unparsed_request;
     ngx_http_zip_piece_t   *pieces;
     ngx_array_t             files;
     ngx_array_t             ranges;
