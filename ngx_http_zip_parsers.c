@@ -25,26 +25,6 @@ ngx_http_zip_file_init(ngx_http_zip_file_t *parsing_file)
     parsing_file->is_directory = 0;
 }
 
-static size_t
-destructive_url_decode_len(unsigned char* start, unsigned char* end)
-{
-    unsigned char *read_pos = start, *write_pos = start;
-
-    for (; read_pos < end; read_pos++) {
-        unsigned char ch = *read_pos;
-        if (ch == '+') {
-            ch = ' ';
-        }
-        if (ch == '%' && (read_pos + 2 < end)) {
-            ch = ngx_hextoi(read_pos + 1, 2);
-            read_pos += 2;
-        }
-        *(write_pos++) = ch;
-    }
-
-    return write_pos - start;
-}
-
 
 static ngx_int_t
 ngx_http_zip_clean_range(ngx_http_zip_range_t *range,
@@ -272,7 +252,7 @@ _match:
 	case 3:
 #line 119 "ngx_http_zip_parsers.rl"
 	{
-            parsing_file->uri.len = destructive_url_decode_len(parsing_file->uri.data, p);
+            parsing_file->uri.len = p - parsing_file->uri.data;
         }
 	break;
 	case 4:
