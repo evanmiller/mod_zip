@@ -609,7 +609,7 @@ ngx_http_zip_send_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
         rc = ngx_http_zip_send_trailer_piece(r, ctx, piece, req_range);
     } else if (piece->type == zip_central_directory_piece) {
         rc = ngx_http_zip_send_central_directory_piece(r, ctx, piece, req_range);
-    }
+    } 
 
     return rc;
 }
@@ -683,6 +683,9 @@ ngx_http_zip_send_pieces(ngx_http_request_t *r,
                 pieces_sent++;
                 ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: no ranges / sending piece type %d", piece->type);
                 rc = ngx_http_zip_send_piece(r, ctx, piece, NULL);
+                if (rc == NGX_AGAIN && r->connection->buffered && !r->postponed) {
+                    rc = NGX_OK;
+                }
             }
             break;
         case 1:
