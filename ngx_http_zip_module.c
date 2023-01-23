@@ -609,7 +609,7 @@ ngx_http_zip_send_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
         rc = ngx_http_zip_send_trailer_piece(r, ctx, piece, req_range);
     } else if (piece->type == zip_central_directory_piece) {
         rc = ngx_http_zip_send_central_directory_piece(r, ctx, piece, req_range);
-    } 
+    }
 
     return rc;
 }
