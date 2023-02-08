@@ -448,7 +448,11 @@ ngx_http_zip_main_request_body_filter(ngx_http_request_t *r,
         if (rc == NGX_HTTP_RANGE_NOT_SATISFIABLE) {
             return ngx_http_special_response_handler(r, rc);
         }
-        if ((rc = ngx_http_send_header(r)) != NGX_OK) {
+        rc = ngx_http_send_header(r);
+
+        if (rc != NGX_OK && !(rc == NGX_AGAIN && r->connection->buffered)) {
+            return rc;
+        }
             return rc;
         }
     }
