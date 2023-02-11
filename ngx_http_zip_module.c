@@ -520,7 +520,6 @@ ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
         return NGX_ERROR;
     }
 
-    sr->internal = 0;
     sr->allow_ranges = 1;
     sr->subrequest_ranges = 1;
     sr->single_range = 1;
