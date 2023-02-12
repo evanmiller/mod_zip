@@ -2,7 +2,7 @@
 
 # TODO tests for Zip64
 
-use Test::More tests => 120;
+use Test::More tests => 121;
 use LWP::UserAgent;
 use Archive::Zip;
 
@@ -149,7 +149,10 @@ $response = $ua->get("$http_root/zip-spaces-plus.txt");
 is($response->code, 200, "Returns OK with spaces and plus in URLs");
 
 $zip = test_zip_archive($response->content, "with spaces and plus in the URLs");
-is($zip->numberOfMembers(), 2, "Correct number in spaces and plus ZIP");
+is($zip->numberOfMembers(), 3, "Correct number in spaces and plus ZIP");
+
+$response = $ua->get("$http_root/zip-internal-location.txt");
+is($response->code, 200, "Returns OK with internal locations");
 
 ########## Package empty directories
 
