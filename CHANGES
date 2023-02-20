@@ -1,3 +1,15 @@
+Changes with mod_zip 1.3.0                                       20 Feb 2023
+
+    *) Bugfix: Excessive memory usage with large input #67 #94
+
+    *) Bugfix: Fix stalled SSL connections #44 #103 #105
+
+    *) Bugfix: Compatibility with nginx 1.23.0+ #93
+
+    *) Feature: Support for empty directories #86
+
+    *) Feature: Pass credentials in subrequests #87
+
 Changes with mod_zip 1.2.0                                       24 Oct 2020
 
     *) Bugfix: Flush file header under SSL #44 #50
