@@ -329,12 +329,44 @@ ngx_http_zip_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
     return ngx_http_zip_main_request_body_filter(r, in);
 }
 
+// a dummy cleanup function, used to find sr_ctx for internal redirects
+static void
+ngx_http_zip_sr_ctx_cleanup(void *data)
+{
+    (void)data;
+}
+
+// taken from modules/ngx_http_realip_module.c
+static ngx_http_zip_sr_ctx_t *
+ngx_http_zip_get_module_sr_ctx(ngx_http_request_t *r)
+{
+    ngx_pool_cleanup_t *cln;
+    ngx_http_zip_sr_ctx_t *sr_ctx;
+
+    sr_ctx = ngx_http_get_module_ctx(r, ngx_http_zip_module);
+
+    /*
+     * if module context was reset, the original address
+     * can still be found in the cleanup handler
+     */
+    if (sr_ctx == NULL && (r->internal || r->filter_finalize)) {
+        for (cln = r->pool->cleanup; cln; cln = cln->next) {
+            if (cln->handler == ngx_http_zip_sr_ctx_cleanup) {
+                sr_ctx = cln->data;
+                break;
+            }
+        }
+    }
+
+    return sr_ctx;
+}
+
 static ngx_int_t
 ngx_http_zip_subrequest_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
     ngx_http_zip_sr_ctx_t *sr_ctx;
 
-    sr_ctx = ngx_http_get_module_ctx(r, ngx_http_zip_module);
+    sr_ctx = ngx_http_zip_get_module_sr_ctx(r);
 
     if (in && sr_ctx && sr_ctx->requesting_file->missing_crc32) {
         uint32_t old_crc32 = sr_ctx->requesting_file->crc32;
@@ -536,9 +568,18 @@ ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
         return NGX_ERROR;
     }
 
-    if ((sr_ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_zip_sr_ctx_t))) == NULL) {
+    ngx_pool_cleanup_t *cln;
+    cln = ngx_pool_cleanup_add(r->pool, sizeof(ngx_http_zip_sr_ctx_t));
+    if (cln == NULL) {
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+    sr_ctx = cln->data;
+    if (sr_ctx == NULL) {
         return NGX_ERROR;
     }
+
+    cln->handler = ngx_http_zip_sr_ctx_cleanup;
+    ngx_http_set_ctx(r, ctx, ngx_http_zip_module);
 
     sr_ctx->requesting_file = piece->file;
 
