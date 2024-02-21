@@ -306,7 +306,6 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         return NGX_ERROR;
 
     ctx->cd_size = 0;
-    unix_time = time(NULL);
     dos_time = ngx_dos_time(unix_time);
     for (piece_i = i = 0; i < ctx->files.nelts; i++) {
         file = &((ngx_http_zip_file_t *)ctx->files.elts)[i];
