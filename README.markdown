@@ -62,7 +62,6 @@ the following HTTP header:
 
     X-Archive-Pass-Headers: <header-name>[:<header-name>]*
 
-
 Re-encoding filenames
 ---
 
