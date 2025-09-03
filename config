@@ -4,6 +4,10 @@ if [ $ngx_module_link = DYNAMIC ] ; then
     ngx_module_name=ngx_http_zip_module
     ngx_module_srcs="$ngx_addon_dir/ngx_http_zip_module.c $ngx_addon_dir/ngx_http_zip_parsers.c $ngx_addon_dir/ngx_http_zip_file.c $ngx_addon_dir/ngx_http_zip_headers.c"
 
+    ngx_module_type=HTTP_FILTER
+    # ensure we run after postpone (and after gunzip if relevant), but before copy
+    ngx_module_order="ngx_http_postpone_filter_module ngx_http_gunzip_filter_module $ngx_module_name ngx_http_copy_filter_module"
+
     . auto/module
 elif [ $ngx_module_link = ADDON ] ; then
     HTTP_AUX_FILTER_MODULES="$HTTP_AUX_FILTER_MODULES ngx_http_zip_module"
