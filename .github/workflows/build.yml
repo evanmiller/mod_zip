@@ -6,9 +6,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        mode: [ static, dynamic ]
         compiler: [ gcc, clang ]
         version: [ 1.22.1, 1.24.0, 1.26.3, 1.28.0, 1.29.1 ]
     steps:
+      # Prepare environment
       - name: Install carton
         run: sudo apt install carton
       - uses: actions/checkout@v2
@@ -16,18 +18,50 @@ jobs:
         run: wget http://nginx.org/download/nginx-${{ matrix.version }}.tar.gz
       - name: Untar nginx
         run: tar xvfz nginx-${{ matrix.version }}.tar.gz
-      - name: Configure
+
+      # Configure nginx with static mod_zip
+      - name: Configure (static)
+        if: ${{ matrix.mode == 'static' }}
         run: ./configure --prefix=${GITHUB_WORKSPACE}/t/nginx --add-module=${GITHUB_WORKSPACE}
         working-directory: nginx-${{ matrix.version }}
         env:
           CC: ${{ matrix.compiler }}
           CFLAGS: -Wno-implicit-fallthrough
+
+      # Configure nginx without modules
+      - name: Configure (nginx only)
+        if: ${{ matrix.mode == 'dynamic' }}
+        run: ./configure --prefix=${GITHUB_WORKSPACE}/t/nginx
+        working-directory: nginx-${{ matrix.version }}
+        env:
+          CC: ${{ matrix.compiler }}
+          CFLAGS: -Wno-implicit-fallthrough
+
+      # Both paths require nginx to be compiled and installed
       - name: Make
-        run: make
+        run: make -j${nproc}
         working-directory: nginx-${{ matrix.version }}
       - name: Make install
         run: make install
         working-directory: nginx-${{ matrix.version }}
+
+      # mod_zip dynamic module
+      - name: Configure (mod_zip dynamic)
+        if: ${{ matrix.mode == 'dynamic' }}
+        run: ./configure --prefix=${GITHUB_WORKSPACE}/t/nginx --add-dynamic-module=${GITHUB_WORKSPACE}
+        working-directory: nginx-${{ matrix.version }}
+        env:
+          CC: ${{ matrix.compiler }}
+          CFLAGS: -Wno-implicit-fallthrough
+      - name: Make modules
+        run: make -j${nproc} modules
+        if: ${{ matrix.mode == 'dynamic' }}
+        working-directory: nginx-${{ matrix.version }}
+      - name: Add load_module to nginx.conf
+        if: ${{ matrix.mode == 'dynamic' }}
+        run: sed -i "1iload_module ${GITHUB_WORKSPACE}/nginx-${{ matrix.version}}/objs/ngx_http_zip_module.so;" ${GITHUB_WORKSPACE}/t/nginx.conf
+
+      # Run test harness
       - name: Start nginx
         run: ./restart.sh
         working-directory: t
