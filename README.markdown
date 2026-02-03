@@ -15,6 +15,28 @@ to know the file checksums (CRC-32's) in advance. See "Usage" for details.
 To unzip files on the fly, check out [nginx-unzip-module](https://github.com/youzee/nginx-unzip-module).
 
 
+Pre-built Packages (Ubuntu / Debian)
+------------------------------------
+
+Pre-built packages for this module are freely available from the GetPageSpeed repository:
+
+```bash
+# Install the repository keyring
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://extras.getpagespeed.com/deb-archive-keyring.gpg \
+  | sudo tee /etc/apt/keyrings/getpagespeed.gpg >/dev/null
+
+# Add the repository (Ubuntu example - replace 'ubuntu' and 'jammy' for your distro)
+echo "deb [signed-by=/etc/apt/keyrings/getpagespeed.gpg] https://extras.getpagespeed.com/ubuntu jammy main" \
+  | sudo tee /etc/apt/sources.list.d/getpagespeed-extras.list
+
+# Install nginx and the module
+sudo apt-get update
+sudo apt-get install nginx nginx-module-zip
+```
+
+The module is automatically enabled after installation. Supported distributions include Debian 12/13 and Ubuntu 20.04/22.04/24.04 (both amd64 and arm64). See [the complete setup instructions](https://apt-nginx-extras.getpagespeed.com/apt-setup/).
+
 Installation
 ------------
 
@@ -35,7 +57,7 @@ upstream) includes the following HTTP header:
 
     X-Archive-Files: zip
 
-It then scans the response body for a list of files. The syntax is a 
+It then scans the response body for a list of files. The syntax is a
 space-separated list of the file checksum (CRC-32), size (in bytes), location
 (properly URL-encoded), and file name. One file per line.  The file location
 corresponds to a location in your nginx.conf; the file can be on disk, from an
@@ -103,7 +125,7 @@ Tips
 1. Add a header "Content-Disposition: attachment; filename=foobar.zip" in the
 upstream response if you would like the client to name the file "foobar.zip"
 
-1. To save bandwidth, add a "Last-Modified" header in the upstream response; 
+1. To save bandwidth, add a "Last-Modified" header in the upstream response;
 mod_zip will then honor the "If-Range" header from clients.
 
 1. To wipe the X-Archive-Files header from the response sent to the client,
