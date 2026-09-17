@@ -147,10 +147,17 @@ static ngx_zip_zip64_end_of_central_directory_locator_t ngx_zip_zip64_end_of_cen
 //-----------------------------------------------------------------------------------------------------------
 
 
+#define NGX_ZIP_DOS_EPOCH  315532800  /* 1980-01-01 00:00:00 UTC, the earliest DOS date */
+
 // Convert UNIX timestamp to DOS timestamp
 static ngx_uint_t ngx_dos_time(time_t t)
 {
     ngx_tm_t tm;
+
+    if (t < NGX_ZIP_DOS_EPOCH) {
+        t = NGX_ZIP_DOS_EPOCH;
+    }
+
     ngx_gmtime(t, &tm); // ngx_gmtime does the mon++ and year += 1900 for us
 
     return (tm.ngx_tm_sec >> 1)
@@ -159,6 +166,38 @@ static ngx_uint_t ngx_dos_time(time_t t)
         + (tm.ngx_tm_mday << 16)
         + (tm.ngx_tm_mon << 21)
         + ((tm.ngx_tm_year-1980) << 25);
+}
+
+/*
+ * The modification time stored for every entry.  When the file-list
+ * response carries a Last-Modified header we use that, so the archive is
+ * byte-for-byte reproducible: a client resuming with Range/If-Range gets
+ * the same timestamps it saw in the first response, and checksums of the
+ * archive itself are stable (#74).  Without it, fall back to "now".
+ */
+static time_t
+ngx_http_zip_archive_mtime(ngx_http_request_t *r)
+{
+    time_t  t = -1;
+
+    if (r->headers_out.last_modified_time != -1) {
+        t = r->headers_out.last_modified_time;
+
+    } else if (r->upstream && r->upstream->headers_in.last_modified) {
+        t = ngx_http_parse_time(r->upstream->headers_in.last_modified->value.data,
+                r->upstream->headers_in.last_modified->value.len);
+
+    } else if (r->headers_out.last_modified) {
+        /* set by a non-proxy handler (e.g. ngx_lua) without the parsed time */
+        t = ngx_http_parse_time(r->headers_out.last_modified->value.data,
+                r->headers_out.last_modified->value.len);
+    }
+
+    if (t == (time_t) NGX_ERROR || t < 0) {
+        t = time(NULL);
+    }
+
+    return t;
 }
 
 static void
@@ -211,7 +250,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
 
     ctx->unicode_path = 0;
 #ifdef NGX_ZIP_HAVE_ICONV
-    iconv_t *iconv_cd = NULL;
+    iconv_t iconv_cd = NULL;
 #endif
 
     // Let's try to find special header that contains separator string.
@@ -306,7 +345,7 @@ ngx_http_zip_generate_pieces(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
         return NGX_ERROR;
 
     ctx->cd_size = 0;
-    unix_time = time(NULL);
+    unix_time = ngx_http_zip_archive_mtime(r);
     dos_time = ngx_dos_time(unix_time);
     for (piece_i = i = 0; i < ctx->files.nelts; i++) {
         file = &((ngx_http_zip_file_t *)ctx->files.elts)[i];

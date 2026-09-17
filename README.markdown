@@ -103,8 +103,46 @@ Tips
 1. Add a header "Content-Disposition: attachment; filename=foobar.zip" in the
 upstream response if you would like the client to name the file "foobar.zip"
 
-1. To save bandwidth, add a "Last-Modified" header in the upstream response; 
-mod_zip will then honor the "If-Range" header from clients.
+1. To save bandwidth, add a "Last-Modified" header in the upstream response;
+mod_zip will then honor the "If-Range" header from clients. The same header
+is used as the modification time of every entry in the archive, so the
+archive is byte-for-byte identical between requests (which is what makes
+resuming safe, and what you want if clients checksum the download). Without
+it, entries are stamped with the current time.
+
+1. When a client resumes a download, its `Range` and `If-Range` headers refer
+to the ZIP archive, not to the file list. nginx forwards request headers to
+the upstream by default, and an upstream that honors `Range` on the file
+list will answer `416 Range Not Satisfiable` or a truncated list. Keep those
+headers away from the file-list upstream:
+
+        location /download {
+            proxy_pass              http://backend;
+            proxy_set_header        Range "";
+            proxy_set_header        If-Range "";
+        }
+
+1. `HEAD` requests are answered with the archive's headers only. The
+`Content-Length` can only be computed from the file list, so the upstream
+has to return the list for `HEAD` requests too; the easiest way is to let
+nginx ask the upstream with `GET`:
+
+        location /download {
+            proxy_pass      http://backend;
+            proxy_method    GET;
+        }
+
+    If the upstream sends no body for `HEAD`, the response is still `200 OK`
+with `Content-Type: application/zip`, just without a `Content-Length`.
+
+1. `limit_rate`, `send_timeout` and similar directives apply to the location
+that produces the file list, not to the locations of the component files.
+
+1. mod_zip closes the descriptor of each component file as soon as the
+client has received it. Files served through `open_file_cache` are an
+exception: nginx keeps them referenced until the request ends, so for
+archives with thousands of files either disable `open_file_cache` for the
+component locations or raise `worker_rlimit_nofile`.
 
 1. To wipe the X-Archive-Files header from the response sent to the client,
 use the headers_more module: http://wiki.nginx.org/NginxHttpHeadersMoreModule
