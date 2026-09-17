@@ -1,3 +1,34 @@
+Changes with mod_zip 1.3.1 (unreleased)
+
+    *) Bugfix: File descriptors and copy-filter buffers of finished
+       subrequests are released while the archive is still streaming,
+       instead of at the end of the request. Archives with thousands of
+       files no longer run into the worker's open-file limit, and memory
+       no longer grows with the number of files #42 #79 #81 #108
+
+    *) Bugfix: Subrequests are not started faster than the client reads.
+       A slow client used to make mod_zip open every component file up
+       front #108
+
+    *) Bugfix: The client's request body is no longer re-sent from the
+       subrequests that fetch component files; with a body buffered to
+       disk this failed with "sendfile() failed (9: Bad file descriptor)
+       while sending request to upstream" #79
+
+    *) Bugfix: HEAD requests. mod_zip no longer streams the archive body
+       for HEAD, and answers with headers only (without Content-Length)
+       when the upstream sends no file list for HEAD #22
+
+    *) Bugfix: Entry timestamps are taken from the upstream Last-Modified
+       header when present, so the archive is byte-identical between
+       requests and can be resumed with Range/If-Range consistently #74
+
+    *) Bugfix: Compilation on platforms where iconv_t is not a void
+       pointer (macOS)
+
+    *) Change: The module's headers are declared as build dependencies so
+       that incremental nginx builds pick up header changes
+
 Changes with mod_zip 1.3.0                                       20 Feb 2023
 
     *) Bugfix: Excessive memory usage with large input #67 #94

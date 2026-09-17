@@ -60,10 +60,31 @@ static ngx_int_t ngx_http_zip_init(ngx_conf_t *cf);
 static ngx_int_t ngx_http_zip_main_request_header_filter(ngx_http_request_t *r);
 static ngx_int_t ngx_http_zip_subrequest_header_filter(ngx_http_request_t *r);
 
+static void ngx_http_zip_reclaim_subrequests(ngx_http_request_t *r,
+        ngx_http_zip_ctx_t *ctx);
+
 static ngx_str_t ngx_http_zip_header_variable_name = ngx_string("upstream_http_x_archive_files");
 
 static ngx_http_output_header_filter_pt  ngx_http_next_header_filter;
 static ngx_http_output_body_filter_pt    ngx_http_next_body_filter;
+
+/* the copy filter keeps each subrequest's output buffers in its module context */
+extern ngx_module_t  ngx_http_copy_filter_module;
+
+/* c->buffered bits meaning "handed to the write filter but not sent yet" */
+#if (NGX_HTTP_V2)
+#define NGX_HTTP_ZIP_V2_BUFFERED  NGX_HTTP_V2_BUFFERED
+#else
+#define NGX_HTTP_ZIP_V2_BUFFERED  0
+#endif
+#if (NGX_HTTP_V3)
+#define NGX_HTTP_ZIP_V3_BUFFERED  NGX_HTTP_V3_BUFFERED
+#else
+#define NGX_HTTP_ZIP_V3_BUFFERED  0
+#endif
+#define NGX_HTTP_ZIP_UNSENT_MASK  (NGX_HTTP_WRITE_BUFFERED                       \
+                                   | NGX_HTTP_ZIP_V2_BUFFERED                    \
+                                   | NGX_HTTP_ZIP_V3_BUFFERED)
 
 static ngx_http_module_t  ngx_http_zip_module_ctx = {
     NULL,                       /* preconfiguration */
@@ -193,9 +214,13 @@ ngx_http_zip_main_request_header_filter(ngx_http_request_t *r)
         || ngx_array_init(&ctx->unparsed_request, r->pool, 64 * 1024, 1) == NGX_ERROR
         || ngx_array_init(&ctx->files, r->pool, 1, sizeof(ngx_http_zip_file_t)) == NGX_ERROR
         || ngx_array_init(&ctx->ranges, r->pool, 1, sizeof(ngx_http_zip_range_t)) == NGX_ERROR
-        || ngx_array_init(&ctx->pass_srq_headers, r->pool, 1, sizeof(ngx_str_t)) == NGX_ERROR)
+        || ngx_array_init(&ctx->pass_srq_headers, r->pool, 1, sizeof(ngx_str_t)) == NGX_ERROR
+        || ngx_array_init(&ctx->finished, r->pool, 4, sizeof(ngx_http_request_t *)) == NGX_ERROR)
         return NGX_ERROR;
-    
+
+    /* everything the pool has to clean up so far belongs to the main request */
+    ctx->cleanup_mark = r->pool->cleanup;
+
     ngx_http_set_ctx(r, ctx, ngx_http_zip_module);
 
     return NGX_OK;
@@ -417,6 +442,110 @@ ngx_http_zip_subrequest_done(ngx_http_request_t *r, void *data, ngx_int_t rc)
     return rc;
 }
 
+/*
+ * Subrequests run in the main request's pool, so whatever a finished
+ * subrequest allocated -- most importantly the descriptor of the file it
+ * served and the copy filter's output buffers -- would normally live until
+ * the whole archive has been sent.  With thousands of component files that
+ * exhausts the worker's descriptor limit (#42, #81) and makes memory grow
+ * with the number of files (#108).
+ *
+ * Once every byte the finished subrequests produced has left the write
+ * filter, nothing refers to those resources any more and we can release
+ * them.  Descriptors are found through the pool cleanups added since the
+ * last sweep (the static, index, flv/mp4 and temp-file code all register
+ * ngx_pool_cleanup_file); files opened through open_file_cache use a
+ * private cleanup handler and are left alone.
+ */
+static ngx_uint_t
+ngx_http_zip_free_chain_bufs(ngx_pool_t *pool, ngx_chain_t **chain)
+{
+    ngx_uint_t    n = 0;
+    ngx_buf_t    *b;
+    ngx_chain_t  *cl, *next;
+
+    for (cl = *chain; cl; cl = next) {
+        next = cl->next;
+        b = cl->buf;
+
+        /* only the large (>= pool page) allocations can actually be freed */
+        if (b->start && ngx_pfree(pool, b->start) == NGX_OK) {
+            b->start = b->pos = b->last = b->end = NULL;
+            n++;
+        }
+
+        ngx_free_chain(pool, cl);
+    }
+
+    *chain = NULL;
+
+    return n;
+}
+
+static void
+ngx_http_zip_reclaim_subrequests(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx)
+{
+    ngx_uint_t                i, files = 0, bufs = 0;
+    ngx_chain_t              *cl;
+    ngx_pool_cleanup_t       *cln;
+    ngx_http_request_t      **finished;
+    ngx_output_chain_ctx_t   *octx;
+
+    if (ctx->finished.nelts == 0) {
+        return;
+    }
+
+    if (r->connection->buffered & NGX_HTTP_ZIP_UNSENT_MASK) {
+        return;
+    }
+
+    /*
+     * Our own small header/trailer pieces may legitimately wait in r->out
+     * until postpone_output is reached; what must not be there is a file
+     * buffer (it refers to a descriptor we are about to close) or a copy
+     * filter buffer (memory we are about to free).
+     */
+    for (cl = r->out; cl; cl = cl->next) {
+        if (cl->buf->in_file
+            || cl->buf->tag == (ngx_buf_tag_t) &ngx_http_copy_filter_module)
+        {
+            return;
+        }
+    }
+
+    finished = ctx->finished.elts;
+
+    for (i = 0; i < ctx->finished.nelts; i++) {
+        octx = ngx_http_get_module_ctx(finished[i], ngx_http_copy_filter_module);
+        if (octx == NULL) {
+            continue;
+        }
+
+        bufs += ngx_http_zip_free_chain_bufs(r->pool, &octx->busy);
+        bufs += ngx_http_zip_free_chain_bufs(r->pool, &octx->free);
+        octx->allocated = 0;
+    }
+
+    ctx->finished.nelts = 0;
+
+    for (cln = r->pool->cleanup; cln && cln != ctx->cleanup_mark; cln = cln->next) {
+        if (cln->handler == ngx_pool_cleanup_file) {
+            cln->handler(cln->data);
+            cln->handler = NULL;
+            files++;
+        }
+    }
+
+    ctx->cleanup_mark = r->pool->cleanup;
+
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+            "mod_zip: reclaimed %ui files and %ui buffers of finished subrequests",
+            files, bufs);
+
+    (void)files;
+    (void)bufs;
+}
+
 static ngx_int_t
 ngx_http_zip_main_request_body_filter(ngx_http_request_t *r,
         ngx_chain_t *in)
@@ -462,6 +591,38 @@ ngx_http_zip_main_request_body_filter(ngx_http_request_t *r,
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
             "mod_zip: about to parse list");
 
+    if (r->method == NGX_HTTP_HEAD && ctx->unparsed_request.nelts == 0) {
+        /*
+         * A HEAD request that the upstream answered without a body.  We
+         * cannot know the archive size, but the headers are still worth
+         * more than an error: describe the archive as far as we can.
+         */
+        ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                "mod_zip: empty file list for HEAD request, "
+                "responding without Content-Length");
+
+        if (ngx_http_zip_add_cache_control(r) == NGX_ERROR) {
+            return NGX_ERROR;
+        }
+
+        r->headers_out.content_type_len = sizeof(NGX_ZIP_MIME_TYPE) - 1;
+        ngx_str_set(&r->headers_out.content_type, NGX_ZIP_MIME_TYPE);
+        ngx_http_clear_content_length(r);
+        ngx_http_clear_accept_ranges(r);
+
+        ctx->trailer_sent = 1;
+
+        if (!r->header_sent) {
+            rc = ngx_http_send_header(r);
+            if (rc != NGX_OK &&
+                !(rc == NGX_AGAIN && r->connection->buffered)) {
+                return rc;
+            }
+        }
+
+        return ngx_http_zip_discard_chain(r, in);
+    }
+
     if (ngx_http_zip_parse_request(ctx) == NGX_ERROR) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                 "mod_zip: invalid file list from upstream");
@@ -485,6 +646,15 @@ ngx_http_zip_main_request_body_filter(ngx_http_request_t *r,
             !(rc == NGX_AGAIN && r->connection->buffered)) {
             return rc;
         }
+    }
+
+    if (r->header_only) {
+        /* HEAD: the header filter marked the headers as the last buffer,
+         * so the archive itself must not be assembled (#22) */
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                "mod_zip: header-only request, not sending pieces");
+        ctx->trailer_sent = 1;
+        return ngx_http_zip_discard_chain(r, in);
     }
 
     chain_link = ngx_chain_last_link(in);
@@ -529,13 +699,44 @@ ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "mod_zip: wait NOT DONE  \"%V?%V\"",
                     &ctx->wait->uri, &ctx->wait->args);
-            return NGX_AGAIN;
+            return NGX_DECLINED;
         }
         ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                 "mod_zip: wait \"%V?%V\" done",
                 &ctx->wait->uri, &ctx->wait->args);
+    }
+
+    /*
+     * A finished subrequest only means its data reached the write filter.
+     * Without this check a client that reads slower than we can open files
+     * would have every component file opened (and, with sendfile, queued in
+     * r->out) almost at once.  Give the write filter a chance to drain and,
+     * if the socket is still backed up, retry this piece on the next write
+     * event.
+     */
+    if (r->connection->buffered & NGX_HTTP_WRITE_BUFFERED) {
+        rc = ngx_http_next_body_filter(r, NULL);
+        if (rc == NGX_ERROR) {
+            return NGX_ERROR;
+        }
+        if (r->connection->buffered & NGX_HTTP_WRITE_BUFFERED) {
+            ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                    "mod_zip: output backed up, deferring \"%V?%V\"",
+                    &piece->file->uri, &piece->file->args);
+            return NGX_DECLINED;
+        }
+    }
+
+    if (ctx->wait) {
+        ngx_http_request_t **finished = ngx_array_push(&ctx->finished);
+        if (finished == NULL) {
+            return NGX_ERROR;
+        }
+        *finished = ctx->wait;
         ctx->wait = NULL;
     }
+
+    ngx_http_zip_reclaim_subrequests(r, ctx);
 
     ps = ngx_palloc(r->pool, sizeof(ngx_http_post_subrequest_t));
     if (ps == NULL) {
@@ -557,6 +758,14 @@ ngx_http_zip_send_file_piece(ngx_http_request_t *r, ngx_http_zip_ctx_t *ctx,
     sr->allow_ranges = 1;
     sr->subrequest_ranges = 1;
     sr->single_range = 1;
+
+    /*
+     * Component files are fetched with plain GETs; the client's request body
+     * belongs to the file-list request only.  nginx also closes the body's
+     * temporary file once the main request has sent it upstream, so a
+     * proxied subrequest re-sending it fails with EBADF (#79).
+     */
+    sr->request_body = NULL;
 
     rc = ngx_http_zip_init_subrequest_headers(r, ctx, sr, &piece->range, req_range);
     if (sr->headers_in.range) {
@@ -718,13 +927,24 @@ ngx_http_zip_send_pieces(ngx_http_request_t *r,
     ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
             "mod_zip: sending pieces, starting with piece %d of total %d", ctx->pieces_i, ctx->pieces_n);
 
+    /*
+     * A file piece answers NGX_DECLINED when it could not start its
+     * subrequest yet (the previous one is still running, or the client is
+     * not keeping up).  The piece index is then left alone so the same piece
+     * is retried on the next write event.
+     */
     switch(ctx->ranges.nelts) {
         case 0:
             while (rc == NGX_OK && ctx->pieces_i < ctx->pieces_n) {
-                piece = &ctx->pieces[ctx->pieces_i++];
-                pieces_sent++;
+                piece = &ctx->pieces[ctx->pieces_i];
                 ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: no ranges / sending piece type %d", piece->type);
                 rc = ngx_http_zip_send_piece(r, ctx, piece, NULL);
+                if (rc == NGX_DECLINED) {
+                    rc = NGX_AGAIN;
+                    break;
+                }
+                ctx->pieces_i++;
+                pieces_sent++;
                 if (rc == NGX_AGAIN && r->connection->buffered && !r->postponed) {
                     rc = NGX_OK;
                 }
@@ -733,30 +953,40 @@ ngx_http_zip_send_pieces(ngx_http_request_t *r,
         case 1:
             req_range = &((ngx_http_zip_range_t *)ctx->ranges.elts)[0];
             while (rc == NGX_OK && ctx->pieces_i < ctx->pieces_n) {
-                piece = &ctx->pieces[ctx->pieces_i++];
+                piece = &ctx->pieces[ctx->pieces_i];
                 if (ngx_http_zip_ranges_intersect(&piece->range, req_range)) {
-                    pieces_sent++;
                     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "mod_zip: 1 range / sending piece type %d", piece->type);
                     rc = ngx_http_zip_send_piece(r, ctx, piece, req_range);
+                    if (rc == NGX_DECLINED) {
+                        rc = NGX_AGAIN;
+                        break;
+                    }
+                    pieces_sent++;
                 }
+                ctx->pieces_i++;
             }
             break;
         default:
             while (rc == NGX_OK && ctx->ranges_i < ctx->ranges.nelts) {
                 req_range = &((ngx_http_zip_range_t *)ctx->ranges.elts)[ctx->ranges_i];
                 ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                        "mod_zip: sending range #%d start=%O end=%O (size %d)", 
+                        "mod_zip: sending range #%d start=%O end=%O (size %d)",
                         ctx->ranges_i, req_range->start, req_range->end, req_range->boundary_header.len);
                 rc = ngx_http_zip_send_boundary(r, ctx, req_range);
                 while (rc == NGX_OK && ctx->pieces_i < ctx->pieces_n) {
-                    piece = &ctx->pieces[ctx->pieces_i++];
+                    piece = &ctx->pieces[ctx->pieces_i];
                     if (ngx_http_zip_ranges_intersect(&piece->range, req_range)) {
                         ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                                 "mod_zip: sending range=%d piece=%d",
                                 ctx->ranges_i, pieces_sent);
-                        pieces_sent++;
                         rc = ngx_http_zip_send_piece(r, ctx, piece, req_range);
+                        if (rc == NGX_DECLINED) {
+                            rc = NGX_AGAIN;
+                            break;
+                        }
+                        pieces_sent++;
                     }
+                    ctx->pieces_i++;
                 }
 
                 if (rc == NGX_OK) {

@@ -70,6 +70,11 @@ typedef struct {
     ngx_http_request_t     *wait;
     ngx_array_t             pass_srq_headers;
 
+    /* Subrequests share the main request's pool; these let us give back what
+     * finished subrequests allocated before the whole archive has been sent. */
+    ngx_array_t             finished;      /* ngx_http_request_t *: done, not yet reclaimed */
+    ngx_pool_cleanup_t     *cleanup_mark;  /* pool cleanups newer than this came from subrequests */
+
     unsigned                parsed:1;
     unsigned                trailer_sent:1;
     unsigned                abort:1;
