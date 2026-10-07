@@ -1,5 +1,7 @@
 Changes with mod_zip 1.3.1 (unreleased)
 
+    *) Bugfix: Compilation with GCC 16 when nginx debug support is disabled
+
     *) Bugfix: Compilation when nginx HTTP/3 support is enabled
 
     *) Bugfix: File descriptors and copy-filter buffers of finished

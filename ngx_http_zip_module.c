@@ -1001,6 +1001,8 @@ ngx_http_zip_send_pieces(ngx_http_request_t *r,
     ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
             "mod_zip: sent %d pieces, last rc = %d", pieces_sent, rc);
 
+    (void)pieces_sent;
+
     if (rc == NGX_OK) {
         ctx->trailer_sent = 1;
         return ngx_http_send_special(r, NGX_HTTP_LAST);
