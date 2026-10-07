@@ -1,5 +1,7 @@
 Changes with mod_zip 1.3.1 (unreleased)
 
+    *) Bugfix: Compilation when nginx HTTP/3 support is enabled
+
     *) Bugfix: File descriptors and copy-filter buffers of finished
        subrequests are released while the archive is still streaming,
        instead of at the end of the request. Archives with thousands of

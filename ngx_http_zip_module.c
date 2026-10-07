@@ -77,14 +77,9 @@ extern ngx_module_t  ngx_http_copy_filter_module;
 #else
 #define NGX_HTTP_ZIP_V2_BUFFERED  0
 #endif
-#if (NGX_HTTP_V3)
-#define NGX_HTTP_ZIP_V3_BUFFERED  NGX_HTTP_V3_BUFFERED
-#else
-#define NGX_HTTP_ZIP_V3_BUFFERED  0
-#endif
+/* HTTP/3 uses the write filter and copies consumed data into QUIC buffers. */
 #define NGX_HTTP_ZIP_UNSENT_MASK  (NGX_HTTP_WRITE_BUFFERED                       \
-                                   | NGX_HTTP_ZIP_V2_BUFFERED                    \
-                                   | NGX_HTTP_ZIP_V3_BUFFERED)
+                                   | NGX_HTTP_ZIP_V2_BUFFERED)
 
 static ngx_http_module_t  ngx_http_zip_module_ctx = {
     NULL,                       /* preconfiguration */
