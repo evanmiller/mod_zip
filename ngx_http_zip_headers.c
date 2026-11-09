@@ -284,6 +284,9 @@ ngx_http_zip_init_subrequest_headers(ngx_http_request_t *r, ngx_http_zip_ctx_t *
 
     ngx_memzero(&sr->headers_in, sizeof(sr->headers_in));
     ngx_memcpy(&sr->headers_in.headers, &new_headers, sizeof(new_headers));
+    sr->headers_in.headers.last = (new_headers.last == &new_headers.part)
+        ? &sr->headers_in.headers.part
+        : new_headers.last;
     sr->headers_in.content_length_n = -1;
     sr->headers_in.keep_alive_n = -1;
 
