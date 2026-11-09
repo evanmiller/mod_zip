@@ -95,7 +95,7 @@ static ngx_zip_local_file_header_t ngx_zip_local_file_header_template = {
 
 static ngx_zip_central_directory_file_header_t ngx_zip_central_directory_file_header_template = {
     0x02014b50,  /* central file header signature */
-    zip_version_zip64,      /* version made by */
+    (3 << 8) | zip_version_zip64,      /* version made by: Unix */
     zip_version_default,        /* version needed to extract */
     zip_utf8_flag | zip_missing_crc32_flag,        /* general purpose bit flag */
     0,           /* compression method */
@@ -109,7 +109,7 @@ static ngx_zip_central_directory_file_header_t ngx_zip_central_directory_file_he
     0,           /* file comment length */
     0,           /* disk number start */
     0,           /* internal file attributes */
-    0x81a4000,  /* external file attributes */
+    0x81A40000,  /* external file attributes: regular file, mode 0644 */
     0xffffffff   /* relative offset of local header */
 };
 
